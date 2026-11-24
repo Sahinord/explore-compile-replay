@@ -1,0 +1,24 @@
+{
+  "name": "explore-compile-replay",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Explore once with an agent, compile to a standard test, replay in CI with no model.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "check:examples": "node spec/check-examples.ts",
+    "check": "pnpm typecheck && pnpm check:examples"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^22"
+  }
+}
