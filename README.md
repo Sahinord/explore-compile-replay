@@ -255,6 +255,8 @@ What this project adds is a name for the pattern and a written contract for it: 
 
 ECR generalizes [mobile-agent-testers](https://github.com/pierridotite/mobile-agent-testers), where AI testers explore a mobile app in parallel and report bugs. Two of its runs never take the same path. ECR is the missing half: keep the path that found the bug, as a test that runs for free.
 
+The shape of the idea comes from [Remotion](https://www.remotion.dev), where a video is code: an AI writes that code once, and every render gives the same video with no model. ECR does the same for tests: the agent explores once, and the replay is the render.
+
 ## Feedback
 
 The contract is the thing to challenge right now. If you maintain a test tool or an agent framework, or if you would write an adapter, open an issue and say what would not fit your system.
