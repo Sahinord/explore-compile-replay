@@ -57,7 +57,7 @@ When the agent reports a problem, write what should be true as a checkpoint of t
 { "id": "error-is-explained", "check": { "kind": "visible", "target": { "text": "Password too short" } }, "observed": "failed" }
 ```
 
-The flow asserts it like any other oracle, with a comment above it. The flow is red until the app is fixed, which makes it a reproduction to attach to a bug report. The root [README](../../README.md#a-bug-is-a-test-too) gives the rules.
+The flow asserts it like any other oracle, with a comment above it. The flow is red until the app is fixed, which makes it a reproduction to attach to a bug report. [The command](../../docs/command.md#a-bug-is-a-test-too) gives the rules.
 
 ## On a device
 

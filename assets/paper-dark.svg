@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="54" viewBox="0 0 160 54">
+  <rect x="0.5" y="0.5" width="159" height="53" rx="10" fill="#221D21" stroke="#221D21"/>
+  <g transform="translate(11 12)">
+    <rect width="31" height="31" rx="5" fill="#FFFFFF"/>
+    <path d="M9 6.5h9l4.5 4.5v13.5H9z" fill="none" stroke="#221D21" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M12.5 15h6.5M12.5 19.5h6.5" stroke="#221D21" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <text x="53" y="20" font-family="Helvetica-Bold, Helvetica, Arial, sans-serif" font-size="9" font-weight="bold" fill="#EEF2FF">READ ABOUT THE</text>
+  <text x="52" y="40" font-family="Helvetica-Bold, Helvetica, Arial, sans-serif" font-size="21" font-weight="bold" fill="#EEF2FF">Paper</text>
+</svg>
