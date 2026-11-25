@@ -2,7 +2,7 @@
 
 **Let an agent explore your system once. Compile what it did into a standard test. Replay it in CI with no model.**
 
-> **Status: early draft, opened on 24 November 2026.** The contract is being written in the open. Nothing here runs yet. What exists today is listed [below](#what-exists-today).
+> **Status: early draft, opened on 24 November 2026.** The contract is being written in the open. A first slice runs end to end, on a toy system only: no real app is supported yet. What exists today is listed [below](#what-exists-today).
 
 LLM agents are good at finding what nobody thought to test. They are also slow, they cost money on every run, and they never take the same path twice. That makes them a poor fit for CI.
 
@@ -67,7 +67,7 @@ The draft types are in [`spec/contract.ts`](spec/contract.ts) and the data shape
 
 ## Seven laws
 
-An adapter is correct when it obeys seven laws. A conformance kit will check them, so that anyone can write an adapter and prove it works. Full text: [`spec/laws.md`](spec/laws.md).
+An adapter is correct when it obeys seven laws. A conformance kit checks them, so that anyone can write an adapter and prove it works. The kit covers four laws today and says so for the others. Full text: [`spec/laws.md`](spec/laws.md).
 
 | | Law | In short |
 |---|---|---|
@@ -93,14 +93,45 @@ An adapter is correct when it obeys seven laws. A conformance kit will check the
 | Trace schema, [`spec/schema.ts`](spec/schema.ts) | Draft. Type-checked, with a validated example |
 | Adapter contract, [`spec/contract.ts`](spec/contract.ts) | Draft. Type-checked |
 | Seven laws, [`spec/laws.md`](spec/laws.md) | Draft |
-| Core, `ecr` command, MCP server | Not started |
-| Reference adapter (in memory) and conformance kit | Next |
+| Core, [`packages/core`](packages/core/src/index.ts) | First slice: record a trace through a driver, hash it, resolve parameters, check a source map. No `ecr` command and no MCP server yet |
+| Reference adapter, [`packages/adapter-fixture`](packages/adapter-fixture/src/adapter.ts) | Runs. A to-do list in memory, compiled to a plain `node:test` file |
+| Conformance kit, [`packages/conformance`](packages/conformance/src/index.ts) | First slice. Checks L1, L3, L5 and L7, part of L2 and L4. L6 waits for repair |
+| Repair | Not started |
 | Mobile adapter, compiling to Maestro flows | Planned |
 | Web adapter, compiling to Playwright tests | Planned |
 | Drift benchmark: does a replay break, repair, or stay red when it should? | Planned |
 | Paper | Planned |
 
-To check the draft yourself: `pnpm install && pnpm check`.
+### Try it
+
+You need Node 22.18 or later and pnpm.
+
+```sh
+pnpm install
+pnpm check        # types, examples, tests, conformance
+pnpm conformance  # the report alone
+```
+
+The report for the reference adapter:
+
+```text
+L1  Determinism   pass     same bytes on two compilations, same verdict on 3 replays (1 trace, 1 target)
+L2  Fidelity      partial  recorded traces replay green; the order of actions on an instrumented system is not checked yet
+L3  Traceability  pass     every step has one range, inside the file, with no overlap (1 trace, 1 target)
+L4  No model      partial  no artifact imports a known model SDK; replaying with the network closed is not checked yet
+L5  State         pass     state identical after restore (1 trace)
+L6  Safe repair   skipped  repair is not implemented yet
+L7  No secret     pass     1 secret value searched in traces and artifacts, none found
+```
+
+"partial" and "skipped" are not passes. They mark what the kit cannot prove yet.
+
+To see the three steps on one example, read these two files side by side:
+
+- the trace an exploration recorded: [`anna-first-item.trace.json`](packages/adapter-fixture/examples/anna-first-item.trace.json)
+- the test it compiles to: [`anna-first-item.test.mjs`](packages/adapter-fixture/examples/anna-first-item.test.mjs). It imports nothing from this project, and it holds the names of its parameters, never their values.
+
+The tests replay that file against two changed versions of the system. A new behaviour comes back as a failed oracle. A target that moved comes back as `target_not_found` on its step.
 
 ## Roadmap
 
@@ -109,7 +140,7 @@ These are targets, not promises.
 | When | What |
 |---|---|
 | Week of 24 November 2026 | The contract in the open: schema, adapter contract, laws |
-| Week of 1 December | Core, reference adapter, conformance kit. First real adapter: mobile, with Maestro |
+| Week of 1 December | `ecr` command, MCP server, the rest of the conformance kit. First real adapter: mobile, with Maestro |
 | Week of 8 December | Web adapter with Playwright, drift benchmark, version 0.1 |
 | After | A real app as a case study, more adapters, a paper |
 

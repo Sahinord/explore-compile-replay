@@ -54,6 +54,11 @@ export interface SystemDriver<State, A, O> {
   restore?(id: SnapshotId): Promise<void>;
 }
 
+export interface ReplayOptions {
+  /** Values of the parameters the trace declares, by name. Never stored in the artifact (law L7). */
+  readonly params?: Readonly<Record<string, string>>;
+}
+
 /** One target per artifact format. It compiles, then runs the native tool. */
 export interface Target<A, O> {
   /** "playwright", "maestro". */
@@ -61,7 +66,7 @@ export interface Target<A, O> {
   /** Pure: the same trace gives the same bytes (law L1). */
   compile(trace: TypedTrace<A, O>): CompiledArtifact;
   /** Runs the artifact with its own tool and reports typed divergences. */
-  replay(artifact: CompiledArtifact): Promise<ReplayResult>;
+  replay(artifact: CompiledArtifact, options?: ReplayOptions): Promise<ReplayResult>;
 }
 
 export interface Adapter<State, A, O> {

@@ -11,9 +11,11 @@
     "allowImportingTsExtensions": true,
     "types": [
       "node"
-    ]
+    ],
+    "erasableSyntaxOnly": true
   },
   "include": [
-    "spec/**/*.ts"
+    "spec/**/*.ts",
+    "packages/**/*.ts"
   ]
 }
