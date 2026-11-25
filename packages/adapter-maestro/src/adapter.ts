@@ -53,8 +53,8 @@ const atNeedsAnElement = { message: "`at` says where in an element: the target c
 
 /**
  * A swipe has the direction the finger moves in. `from` and `to` are the two
- * points of the screen where it starts and stops: with them the replay makes
- * the same gesture, without them a gesture of Maestro's own length.
+ * points of the screen where it starts and stops: with them the replay moves
+ * the finger between the same two points, without them over Maestro's own length.
  */
 const Direction = z.enum(["UP", "DOWN", "LEFT", "RIGHT"]);
 function movesIn(direction: z.infer<typeof Direction>, from: string, to: string): boolean {
