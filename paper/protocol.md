@@ -135,4 +135,6 @@ Every file holds: `rq`, `kind`, `ecr_commit`, `mat_commit`, `app_tag`, `app_comm
 
 ## Amendments
 
-None yet.
+**1. 2026-11-25, before any measured run. Form of the targets.** Each result file of kind `to_test` also holds `targets_by_name`, `targets_by_id` and `targets_by_point`: the number of steps of the trace whose target is a name, an identifier or a point. The paper reports them for each trace. Reason: in the first trial on LocalSend (run 45673574711 of mobile-agent-testers), the four replays stopped at step 3 or 4 on a tap that followed a tap by identifier. LocalSend is written with Flutter, which gives its widgets no identifier, and the recorder now stores a tap as a point when the only identifier under it covers half of the screen or more. A point is the weakest form of target, so its share must be known to read the results of D3.
+
+**2. 2026-11-25, before any measured run. Models.** The default configuration uses the model `claude-sonnet-5-5`, given in full to the workflow of mobile-agent-testers through its input `model`, so that no alias has to be resolved. The same model is the proposer of repairs. The trial run 45673574711 accepted this identifier. No trial has been run with an open-weight model, so the second configuration of section 7 is not planned. If such a trial works before the first measured run, an amendment adds it; otherwise the paper says that the results come from one model.
