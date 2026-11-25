@@ -49,7 +49,18 @@ name: "anna: Create her account and add a first task."
 - assertNotVisible:
     text: "Something went wrong"
 # Step keyboard: The keyboard may cover the button, so she closes it.
-- hideKeyboard
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: "com\\.(google\\.)?android\\.inputmethod\\.latin:id/.*"
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - hideKeyboard
 # Oracle no-vague-error
 - assertNotVisible:
     text: "Something went wrong"

@@ -23,6 +23,8 @@ A step finds its target by accessibility id, by visible text, or as a last resor
 
 A tap or a long press lands on the centre of its element. An optional `at`, in percent of the element's box, says where else: `"at": "97%,50%"` is its right end. In a text field written from left to right, a tap there puts the cursor after the text, and `eraseText` then erases the end of the text: Maestro erases before the cursor. A swipe has a `direction`. With an optional `from` and `to`, two points in percent of the screen, the replay moves the finger between the same two points, at Maestro's own speed. Without them it makes a gesture of Maestro's own length. A second example uses the three: [the trace](examples/anna-renames-an-item-mobile.trace.json) and [the flow](examples/anna-renames-an-item-mobile.flow.yaml).
 
+`hideKeyboard` hides the keyboard only while one is on the screen. On Android, Maestro 2.12.1 hides it with Back, also when no keyboard is open, and Back then leaves the screen. So on Android the flow hides it only when a key of Gboard or of the emulator's keyboard is on the screen, and waits up to Maestro's usual 7 s to see one. On iOS it is Maestro's own `hideKeyboard`. A path that pressed Back to close the keyboard should record `hideKeyboard`, not `pressKey` Back: after typing, the keyboard may be open while exploring and closed during a replay.
+
 The types are in [`src/adapter.ts`](src/adapter.ts).
 
 ## How a trace is written
