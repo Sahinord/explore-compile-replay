@@ -21,7 +21,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
-  # The compiled Maestro flows are checked by Maestro itself. Syntax only: no device here.
+  # The compiled Maestro flows are checked by Maestro itself. Syntax only: the device run is in device.yml.
   maestro-syntax:
     runs-on: ubuntu-latest
     env:
@@ -35,7 +35,7 @@ jobs:
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Check the syntax of the compiled flows
         run: |
-          for flow in packages/adapter-maestro/examples/*.flow.yaml; do
+          for flow in packages/adapter-maestro/examples/*.flow.yaml packages/adapter-maestro/device/*.flow.yaml; do
             echo "== $flow"
             maestro check-syntax "$flow"
           done

@@ -1,0 +1,85 @@
+# Compiled by Explore-Compile-Replay: https://github.com/pierridotite/explore-compile-replay
+# Trace: tiny-todo-one-tasks
+# Trace hash: sha256:189f1b6fe00bc49dbb5dbcce208ad9b9b3421597fc696f9d0088241d9c0a6b75
+# Do not edit by hand. Change the trace and compile again.
+# Run: maestro test -e NAME=<value> -e EMAIL=<value> -e PASSWORD=<value> <this file>
+appId: com.example.tinytodo
+name: "anna: Find the task about apples."
+---
+# Step open: She opens the app for the first time.
+- launchApp:
+    clearState: true
+# Oracle sign-up-shown
+- assertVisible:
+    text: "Create your account"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step name-field
+- tapOn:
+    text: "Name"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step name
+- inputText: "${NAME}"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step email-field
+- tapOn:
+    text: "Email"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step email
+- inputText: "${EMAIL}"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step password-field
+- tapOn:
+    text: "Password"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step password
+- inputText: "${PASSWORD}"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step keyboard: The keyboard may cover the button, so she closes it.
+- hideKeyboard
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step continue: She sends the form.
+- tapOn:
+    text: "Continue"
+# Oracle four-tasks
+- assertVisible:
+    text: "4 tasks"
+# Oracle first-task-listed
+- assertVisible:
+    text: "Buy apples"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step search-field
+- tapOn:
+    text: "Search"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step search: She searches for her apples. One task is left, and the counter says "1 tasks".
+- inputText: "apples"
+# Oracle apples-found
+- assertVisible:
+    text: "Buy apples"
+# Oracle counter-singular
+# Known bug: this check was false when the trace was recorded. It fails until the bug is fixed.
+- assertVisible:
+    text: "1 task"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"

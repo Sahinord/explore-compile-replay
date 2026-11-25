@@ -2,15 +2,15 @@
  * Mobile adapter, first slice: a vocabulary for mobile apps and a target
  * that compiles a trace to a Maestro flow (https://maestro.dev).
  *
- * What is here: the vocabulary and the compiler.
+ * What is here: the vocabulary, the compiler, and a replay that runs
+ * `maestro test` and names the command that failed.
  * What is not: a driver (exploring is done outside, see the README of this
- * package), and typed divergences at replay. `replay` runs `maestro test`
- * and can only tell a pass from a failure for now.
+ * package).
  *
- * Status: draft. The flows are checked for syntax, not yet on a device.
+ * Status: draft.
  */
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
@@ -22,7 +22,7 @@ import {
   type Target,
   type TypedTrace,
 } from "../../../spec/contract.ts";
-import type { CompiledArtifact, ReplayResult, SourceRange } from "../../../spec/schema.ts";
+import type { CompiledArtifact, Divergence, ReplayResult, SourceRange } from "../../../spec/schema.ts";
 import { hashTrace, isParamRef } from "../../core/src/index.ts";
 
 /** A literal, or the name of a parameter supplied at replay time. */
@@ -191,27 +191,125 @@ export interface MaestroTargetOptions {
   readonly command?: string;
 }
 
+/** Where a command of the flow comes from: a step, or an oracle checked after a step. */
+export interface FlowCommand {
+  readonly stepId: string;
+  readonly oracleId?: string;
+}
+
+/**
+ * The commands of a compiled flow, in the order Maestro runs them.
+ * A command is a line that starts a list item. Its step comes from the
+ * source map, and the comment above an oracle names it.
+ */
+export function flowCommands(artifact: CompiledArtifact): FlowCommand[] {
+  const lines = artifact.content.split("\n");
+  const commands: FlowCommand[] = [];
+  let oracleId: string | undefined;
+  lines.forEach((line, index) => {
+    if (line.startsWith("# Step ")) oracleId = undefined;
+    else if (line.startsWith("# Oracle ")) oracleId = line.slice("# Oracle ".length);
+    else if (line.startsWith("- ")) {
+      const range = artifact.sourceMap.find((entry) => entry.startLine <= index + 1 && index + 1 <= entry.endLine);
+      if (!range) throw new Error(`Line ${index + 1} of the flow is a command outside of every step`);
+      commands.push(oracleId === undefined ? { stepId: range.stepId } : { stepId: range.stepId, oracleId });
+    }
+  });
+  return commands;
+}
+
+/** One entry of the `commands-*.json` file that Maestro writes with `--debug-output`. */
+interface RecordedCommand {
+  readonly command?: Record<string, unknown>;
+  readonly metadata?: { readonly status?: string; readonly error?: { readonly message?: string } };
+}
+
+/** Commands that Maestro adds by itself before the ones of the flow. */
+const ADDED_BY_MAESTRO = new Set(["applyConfigurationCommand", "defineVariablesCommand"]);
+
+/**
+ * Reads what Maestro recorded and names the command that failed.
+ * Returns nothing when the record does not have the expected shape: the
+ * caller then reports that the flow could not be read, never a guess.
+ */
+export function failedCommand(recorded: unknown, commands: readonly FlowCommand[]): { command: FlowCommand; message?: string } | undefined {
+  if (!Array.isArray(recorded)) return undefined;
+  const ours = (recorded as RecordedCommand[]).filter((entry) => {
+    const kinds = Object.keys(entry.command ?? {});
+    return kinds.length > 0 && !kinds.some((kind) => ADDED_BY_MAESTRO.has(kind));
+  });
+  if (ours.length > commands.length) return undefined;
+  const index = ours.findIndex((entry) => entry.metadata?.status === "FAILED");
+  const command = commands[index];
+  if (index === -1 || !command) return undefined;
+  const message = ours[index]?.metadata?.error?.message;
+  return message === undefined ? { command } : { command, message };
+}
+
+function toDivergence(failed: { command: FlowCommand; message?: string }): Divergence {
+  const message = failed.message === undefined ? {} : { message: failed.message };
+  const { stepId, oracleId } = failed.command;
+  if (oracleId !== undefined) return { type: "oracle_failed", oracleId, stepId, ...message };
+  const text = failed.message ?? "";
+  const type = /timed? ?out/i.test(text) ? "timeout" : /not found|no visible element/i.test(text) ? "target_not_found" : "action_failed";
+  return { type, stepId, ...message };
+}
+
+/** Values of parameters must not reach a report: each one is replaced by its name. */
+function withoutValues(text: string, params: Readonly<Record<string, string>>): string {
+  let result = text;
+  for (const [name, value] of Object.entries(params)) {
+    if (value.length >= 3) result = result.split(value).join(`\${${name}}`);
+  }
+  return result;
+}
+
 export function maestroTarget(options: MaestroTargetOptions = {}): Target<MobileAction, MobileOracle> {
   return {
     id: "maestro",
     compile: compileToMaestro,
     async replay(artifact: CompiledArtifact, replayOptions?: ReplayOptions): Promise<ReplayResult> {
+      const params = replayOptions?.params ?? {};
       const dir = await mkdtemp(join(tmpdir(), "ecr-maestro-"));
       const started = performance.now();
       try {
         const file = join(dir, "replay.flow.yaml");
+        const debug = join(dir, "debug");
         await writeFile(file, artifact.content);
         // Maestro takes values as `-e NAME=value`. They are visible in the process list while the flow runs.
-        const values = Object.entries(replayOptions?.params ?? {}).flatMap(([name, value]) => ["-e", `${name}=${value}`]);
+        const values = Object.entries(params).flatMap(([name, value]) => ["-e", `${name}=${value}`]);
+        const args = ["test", "--debug-output", debug, "--flatten-debug-output", ...values, file];
         const run = await new Promise<{ code: number; output: string }>((done, fail) => {
-          execFile(options.command ?? "maestro", ["test", ...values, file], { timeout: 15 * 60_000 }, (error, stdout, stderr) => {
+          execFile(options.command ?? "maestro", args, { timeout: 15 * 60_000 }, (error, stdout, stderr) => {
             if (error && typeof error.code !== "number") fail(new Error(`Could not run Maestro: ${error.message}`));
             else done({ code: error ? (error.code as number) : 0, output: `${stdout}\n${stderr}` });
           });
         });
-        if (run.code === 0) return { verdict: "pass", divergences: [], durationMs: performance.now() - started };
-        throw new Error(`The flow failed. Typed divergences are not written yet for Maestro. Its output:\n${run.output}`);
+        const durationMs = performance.now() - started;
+        if (run.code === 0) return { verdict: "pass", divergences: [], durationMs };
+
+        // Which command failed is read from the record Maestro keeps, not from what it prints.
+        const commands = flowCommands(artifact);
+        const names = (await readdir(debug).catch(() => [])).filter((name) => /^commands-.*\.json$/.test(name)).sort();
+        for (const name of names) {
+          let recorded: unknown;
+          try {
+            recorded = JSON.parse(await readFile(join(debug, name), "utf8"));
+          } catch {
+            continue;
+          }
+          const failed = failedCommand(recorded, commands);
+          if (failed) {
+            const divergence = toDivergence(failed);
+            const message = divergence.message === undefined ? {} : { message: withoutValues(divergence.message, params) };
+            return { verdict: "fail", divergences: [{ ...divergence, ...message }], durationMs };
+          }
+        }
+        throw new Error(`The flow failed, and Maestro's record does not say on which command. Its output:\n${withoutValues(run.output, params)}`);
       } finally {
+        // For someone who debugs a flow: keep what Maestro wrote (its record, its screenshots).
+        const keep = process.env.ECR_MAESTRO_DEBUG;
+        if (keep) await cp(dir, join(keep, artifact.path), { recursive: true }).catch(() => undefined);
         await rm(dir, { recursive: true, force: true });
       }
     },

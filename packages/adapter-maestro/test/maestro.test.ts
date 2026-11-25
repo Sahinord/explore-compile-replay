@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { checkSourceMap, parseTrace } from "../../core/src/index.ts";
-import { compileToMaestro, createMaestroAdapter, type MobileAction, type MobileTrace } from "../src/adapter.ts";
+import { checkSourceMap, outcomeOf, parseTrace } from "../../core/src/index.ts";
+import { compileToMaestro, createMaestroAdapter, failedCommand, flowCommands, maestroTarget, type MobileAction, type MobileTrace } from "../src/adapter.ts";
 
 const examples = join(import.meta.dirname, "..", "examples");
 const adapter = createMaestroAdapter();
@@ -142,4 +143,104 @@ test("an oracle recorded as a bug is asserted like the others, under a comment",
     ],
   });
   assert.match(flow, /# Oracle saved\n# Known bug: [^\n]+\n- assertVisible:\n {4}text: "Saved"/);
+});
+
+const device = join(import.meta.dirname, "..", "device");
+
+function deviceTrace(name: string): MobileTrace {
+  return parseTrace(adapter, JSON.parse(readFileSync(join(device, `${name}.trace.json`), "utf8")));
+}
+
+/**
+ * A stand-in for the `maestro` command: it writes the record of a run in
+ * which the command at `failAt` failed, in the shape Maestro gives to
+ * `--debug-output`, and exits like Maestro does.
+ */
+function fakeMaestro(dir: string, total: number, failAt: number | undefined, message: string): string {
+  const entries = [
+    { command: { applyConfigurationCommand: {} }, metadata: { status: "COMPLETED" } },
+    { command: { defineVariablesCommand: {} }, metadata: { status: "COMPLETED" } },
+    ...Array.from({ length: failAt === undefined ? total : failAt + 1 }, (_, index) => ({
+      command: { tapOnElement: {} },
+      metadata: index === failAt ? { status: "FAILED", error: { message } } : { status: "COMPLETED" },
+    })),
+  ];
+  const record = join(dir, "record.json");
+  writeFileSync(record, JSON.stringify(entries));
+  const script = join(dir, "maestro");
+  writeFileSync(
+    script,
+    [
+      "#!/usr/bin/env bash",
+      'while [ $# -gt 0 ]; do [ "$1" = "--debug-output" ] && out="$2"; shift; done',
+      'mkdir -p "$out" && cp "$(dirname "$0")/record.json" "$out/commands-(replay.flow).json"',
+      `exit ${failAt === undefined ? 0 : 1}`,
+      "",
+    ].join("\n"),
+  );
+  chmodSync(script, 0o755);
+  return script;
+}
+
+test("the flows in device/ are what the compiler gives today", () => {
+  for (const name of ["tiny-todo-first-task", "tiny-todo-one-tasks"]) {
+    const artifact = compileToMaestro(deviceTrace(name));
+    assert.equal(artifact.content, readFileSync(join(device, artifact.path), "utf8"));
+  }
+});
+
+test("flowCommands names the step and the oracle of each command, in order", () => {
+  const trace = deviceTrace("tiny-todo-one-tasks");
+  const commands = flowCommands(compileToMaestro(trace));
+  // One command per step, and after each step its checkpoints then the invariant.
+  const expected = trace.steps.flatMap((step) => [
+    { stepId: step.id },
+    ...[...step.checkpoints, ...trace.invariants].map((oracle) => ({ stepId: step.id, oracleId: oracle.id })),
+  ]);
+  assert.deepEqual(commands, expected);
+});
+
+test("replay: a failed assertion comes back as the oracle it checks, and a recorded bug is told from a regression", async () => {
+  const trace = deviceTrace("tiny-todo-one-tasks");
+  const artifact = compileToMaestro(trace);
+  const commands = flowCommands(artifact);
+  const params = { NAME: "Anna", EMAIL: "anna@example.com", PASSWORD: "long-enough-1" };
+  const dir = mkdtempSync(join(tmpdir(), "ecr-fake-maestro-"));
+  try {
+    const run = (failAt: number | undefined, message = "Assertion is false") =>
+      maestroTarget({ command: fakeMaestro(dir, commands.length, failAt, message) }).replay(artifact, { params });
+
+    // The oracle recorded as a bug fails: the bug is still there.
+    const bugAt = commands.findIndex((command) => command.oracleId === "counter-singular");
+    const bug = await run(bugAt);
+    assert.deepEqual(bug.divergences, [{ type: "oracle_failed", oracleId: "counter-singular", stepId: "search", message: "Assertion is false" }]);
+    assert.equal(outcomeOf(trace, bug), "known_bug");
+
+    // A guard fails earlier: a regression.
+    const guard = await run(commands.findIndex((command) => command.oracleId === "four-tasks"));
+    assert.equal(outcomeOf(trace, guard), "fail");
+
+    // A step does not find its target. The value of a parameter never reaches the report.
+    const stepAt = commands.findIndex((command) => command.stepId === "continue" && command.oracleId === undefined);
+    const step = await run(stepAt, 'Element not found: Text matching regex: Continue (typed "long-enough-1")');
+    assert.deepEqual(
+      step.divergences.map((divergence) => [divergence.type, divergence.stepId]),
+      [["target_not_found", "continue"]],
+    );
+    assert.equal(JSON.stringify(step).includes("long-enough-1"), false);
+    assert.match(step.divergences[0]!.message!, /\$\{PASSWORD\}/);
+
+    // Everything holds: the bug is gone.
+    assert.equal(outcomeOf(trace, await run(undefined)), "fixed");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("failedCommand gives nothing, rather than a guess, when the record has another shape", () => {
+  const commands = flowCommands(compileToMaestro(deviceTrace("tiny-todo-first-task")));
+  assert.equal(failedCommand({ not: "a list" }, commands), undefined);
+  assert.equal(failedCommand([{ command: { tapOnElement: {} }, metadata: { status: "COMPLETED" } }], commands), undefined);
+  const tooMany = Array.from({ length: commands.length + 1 }, () => ({ command: { tapOnElement: {} }, metadata: { status: "FAILED" } }));
+  assert.equal(failedCommand(tooMany, commands), undefined);
 });

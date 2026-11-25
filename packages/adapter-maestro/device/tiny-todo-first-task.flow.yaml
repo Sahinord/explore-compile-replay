@@ -1,0 +1,90 @@
+# Compiled by Explore-Compile-Replay: https://github.com/pierridotite/explore-compile-replay
+# Trace: tiny-todo-first-task
+# Trace hash: sha256:48927630e78d0d1f708a749cb9921a4046d2f58f0824dd1b16e8f5e4fa2d41ba
+# Do not edit by hand. Change the trace and compile again.
+# Run: maestro test -e NAME=<value> -e EMAIL=<value> -e PASSWORD=<value> <this file>
+appId: com.example.tinytodo
+name: "anna: Create her account and add a first task."
+---
+# Step open: She opens the app for the first time.
+- launchApp:
+    clearState: true
+# Oracle sign-up-shown
+- assertVisible:
+    text: "Create your account"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step name-field
+- tapOn:
+    text: "Name"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step name
+- inputText: "${NAME}"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step email-field
+- tapOn:
+    text: "Email"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step email
+- inputText: "${EMAIL}"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step password-field
+- tapOn:
+    text: "Password"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step password
+- inputText: "${PASSWORD}"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step keyboard: The keyboard may cover the button, so she closes it.
+- hideKeyboard
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step continue: She sends the form.
+- tapOn:
+    text: "Continue"
+# Oracle four-tasks
+- assertVisible:
+    text: "4 tasks"
+# Oracle first-task-listed
+- assertVisible:
+    text: "Buy apples"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step task-field
+- tapOn:
+    text: "New task"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step task
+- inputText: "Buy milk"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
+# Step add: She adds the task.
+- tapOn:
+    text: "Add"
+# Oracle task-listed
+- assertVisible:
+    text: "Buy milk"
+# Oracle five-tasks
+- assertVisible:
+    text: "5 tasks"
+# Oracle no-vague-error
+- assertNotVisible:
+    text: "Something went wrong"
