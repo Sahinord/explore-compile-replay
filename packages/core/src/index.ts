@@ -185,3 +185,47 @@ export async function record<State, A, O>(
   });
   return trace as unknown as TypedTrace<A, O>;
 }
+
+/** A trace that does not fit the schema, or the vocabularies of its adapter. */
+export class TraceError extends Error {
+  override name = "TraceError";
+  readonly issues: readonly string[];
+
+  constructor(issues: readonly string[]) {
+    super(issues.join("\n"));
+    this.issues = issues;
+  }
+}
+
+function issuesOf(error: { issues: readonly { path: PropertyKey[]; message: string }[] }, prefix: string): string[] {
+  return error.issues.map((issue) => `${[prefix, ...issue.path.map(String)].filter(Boolean).join(".")}: ${issue.message}`);
+}
+
+/**
+ * Checks a value read from a file against the trace schema, then against
+ * the vocabularies of the adapter. Throws a `TraceError` that lists every problem.
+ */
+export function parseTrace<State, A, O>(adapter: Adapter<State, A, O>, value: unknown): TypedTrace<A, O> {
+  const parsed = Trace.safeParse(value);
+  if (!parsed.success) throw new TraceError(issuesOf(parsed.error, ""));
+  const trace = parsed.data;
+
+  const issues: string[] = [];
+  if (trace.adapter.id !== adapter.id) {
+    issues.push(`adapter.id: the trace was recorded with "${trace.adapter.id}", not "${adapter.id}"`);
+  }
+  const checkOracles = (oracles: readonly { check: unknown }[], prefix: string): void => {
+    oracles.forEach((oracle, index) => {
+      const result = adapter.oracles.safeParse(oracle.check);
+      if (!result.success) issues.push(...issuesOf(result.error, `${prefix}.${index}.check`));
+    });
+  };
+  checkOracles(trace.invariants, "invariants");
+  trace.steps.forEach((step, index) => {
+    const result = adapter.actions.safeParse(step.action);
+    if (!result.success) issues.push(...issuesOf(result.error, `steps.${index}.action`));
+    checkOracles(step.checkpoints, `steps.${index}.checkpoints`);
+  });
+  if (issues.length > 0) throw new TraceError(issues);
+  return trace as unknown as TypedTrace<A, O>;
+}

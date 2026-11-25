@@ -11,10 +11,12 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "schema": "node spec/generate-schema.ts",
     "check:examples": "node spec/check-examples.ts",
     "test": "node --test \"packages/**/*.test.ts\"",
+    "ecr": "node packages/cli/src/main.ts",
     "conformance": "node packages/adapter-fixture/conformance.ts",
-    "check": "pnpm typecheck && pnpm check:examples && pnpm test && pnpm conformance"
+    "check": "pnpm typecheck && pnpm schema --check && pnpm check:examples && pnpm test && pnpm conformance"
   },
   "dependencies": {
     "zod": "^4.6.7"

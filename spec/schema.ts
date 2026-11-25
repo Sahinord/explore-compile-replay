@@ -3,7 +3,8 @@
  *
  * Source of truth for every shape that crosses a boundary: what an
  * exploration records, what a target compiles, what a replay reports.
- * A JSON Schema will be generated from this file and checked in CI.
+ * `trace.schema.json` is generated from this file (`pnpm schema`) and
+ * checked in CI.
  *
  * Status: draft. Names and fields will change before 0.1.
  */
