@@ -2,7 +2,7 @@
 
 Status: draft. The wording will change before 0.1.
 
-An adapter is correct when it obeys these laws. Each law has an identifier, a statement, and the way the conformance kit checks it. A first slice of the kit is in [`packages/conformance`](../packages/conformance/src/index.ts): it covers L1, L3, L5 and L7, and part of L2 and L4. The checks below are its specification.
+An adapter is correct when it obeys these laws. Each law has an identifier, a statement, and the way the conformance kit checks it. A first slice of the kit is in [`packages/conformance`](../packages/conformance/src/index.ts): it covers L1, L3, L5 and L7, and part of L2, L4 and L6. The checks below are its specification.
 
 Words used here are defined in [`schema.ts`](schema.ts) (trace, step, oracle, artifact, divergence) and in [`contract.ts`](contract.ts) (driver, target).
 
@@ -42,7 +42,11 @@ When a driver declares the `snapshot` capability, `restore(snapshot())` brings t
 
 A repair patch stays inside the range of the step that diverged. It removes no oracle and weakens none. A failed oracle is never repaired: it is a regression or an intended change, and a person decides.
 
-**Check.** Inject each kind of divergence, run the repair, and verify that the patch touches only the range of the failing step and that the set of oracles is unchanged. Inject a behaviour change and verify that no patch is proposed.
+A patch is one step and one new action. It is accepted only if the replay of the patched artifact gives what the trace recorded. ECR proposes no patch: an agent or a person does.
+
+**Check.** Inject each kind of divergence, run the repair, and verify that the patch touches only the range of the failing step and that the set of oracles is unchanged. Inject a behaviour change and verify that no patch is accepted.
+
+Today the kit checks the first half on the compiled files: it gives each step the action of another step, and verifies that the text of every other step is unchanged. The second half is checked by the tests of the core on the reference adapter, not yet for every adapter.
 
 ## L7. No secret
 

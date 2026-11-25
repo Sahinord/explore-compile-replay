@@ -36,6 +36,7 @@ type Text = z.infer<typeof Text>;
 export const actions = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("add"), title: Text }),
   z.strictObject({ kind: z.literal("toggle"), title: Text }),
+  z.strictObject({ kind: z.literal("toggleAt"), index: z.number().int().nonnegative() }),
   z.strictObject({ kind: z.literal("remove"), title: Text }),
 ]);
 export type TodoAction = z.infer<typeof actions>;
@@ -72,6 +73,7 @@ export function createTodoDriver(create: () => TodoApp = () => new TodoApp()): S
       return { state: app.state(), stable: true };
     },
     async execute(action) {
+      if (action.kind === "toggleAt") return app.toggleAt(action.index);
       const title = literal(action.title);
       if (action.kind === "add") app.add(title);
       else if (action.kind === "toggle") app.toggle(title);
@@ -124,6 +126,7 @@ function paramNames(value: unknown): string[] {
 }
 
 function actionLine(action: TodoAction): string {
+  if (action.kind === "toggleAt") return `app.toggleAt(${action.index});`;
   return `app.${action.kind}(${js(action.title)});`;
 }
 

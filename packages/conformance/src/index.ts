@@ -10,7 +10,7 @@
  */
 import type { Adapter, Target, TypedTrace } from "../../../spec/contract.ts";
 import type { ReplayResult } from "../../../spec/schema.ts";
-import { canonicalJson, checkSourceMap, firstBug, hashTrace, outcomeOf, resolveParams } from "../../core/src/index.ts";
+import { canonicalJson, checkPatchLocality, checkSourceMap, firstBug, hashTrace, outcomeOf, resolveParams } from "../../core/src/index.ts";
 
 export type LawId = "L1" | "L2" | "L3" | "L4" | "L5" | "L6" | "L7";
 export type LawStatus = "pass" | "fail" | "partial" | "skipped";
@@ -96,6 +96,8 @@ export async function checkAdapter<State, A, O>(
   const noModel: string[] = [];
   const noSecret: string[] = [];
   let secretsChecked = 0;
+  const safeRepair: string[] = [];
+  let patchesChecked = 0;
 
   for (const target of adapter.targets) {
     for (const testCase of cases) {
@@ -132,6 +134,25 @@ export async function checkAdapter<State, A, O>(
       const steps = testCase.trace.steps.map((step) => step.id);
       for (const problem of checkSourceMap(artifact, steps)) traceability.push(`${name}: ${problem}`);
 
+      // L6, compile: a new action for one step changes the text of that step only.
+      // The kit cannot invent an action, so it gives each step the action of another step.
+      for (const step of testCase.trace.steps) {
+        const donor = testCase.trace.steps.find((other) => canonicalJson(other.action) !== canonicalJson(step.action));
+        if (!donor) continue;
+        let patched;
+        try {
+          patched = target.compile({
+            ...testCase.trace,
+            steps: testCase.trace.steps.map((entry) => (entry.id === step.id ? { ...entry, action: donor.action } : entry)),
+          });
+        } catch {
+          // The target refuses this action at this place (a first step that must open the app, for example).
+          continue;
+        }
+        patchesChecked += 1;
+        for (const problem of checkPatchLocality(artifact, patched, step.id)) safeRepair.push(`${name}: ${problem}`);
+      }
+
       // L4: the artifact imports no known model SDK.
       const sdk = importsModelSdk(artifact.content);
       if (sdk !== undefined) noModel.push(`${name}: the artifact imports ${sdk}`);
@@ -164,7 +185,15 @@ export async function checkAdapter<State, A, O>(
       ? result("L4", "fail", noModel.join("; "))
       : result("L4", "partial", "no artifact imports a known model SDK; replaying with the network closed is not checked yet"),
     await checkState(adapter, cases),
-    result("L6", "skipped", "repair is not implemented yet"),
+    safeRepair.length > 0
+      ? result("L6", "fail", [...new Set(safeRepair)].join("; "))
+      : patchesChecked === 0
+        ? result("L6", "skipped", "no trace has two different actions to exchange")
+        : result(
+            "L6",
+            "partial",
+            `a new action for one step leaves the text of the other steps (${patchesChecked} patch${patchesChecked === 1 ? "" : "es"}); that a behaviour change comes back as a failed oracle is not checked yet`,
+          ),
     noSecret.length > 0
       ? result("L7", "fail", noSecret.join("; "))
       : secretsChecked === 0

@@ -28,7 +28,7 @@ test("the reference adapter obeys every law the kit can check", async () => {
   assert.equal(conforms(results), true, formatReport(results));
   assert.deepEqual(
     results.map((entry) => `${entry.law} ${entry.status}`),
-    ["L1 pass", "L2 partial", "L3 pass", "L4 partial", "L5 pass", "L6 skipped", "L7 pass"],
+    ["L1 pass", "L2 partial", "L3 pass", "L4 partial", "L5 pass", "L6 partial", "L7 pass"],
   );
 });
 
@@ -107,6 +107,31 @@ test("L5 fails when restore does not bring the state back, and is skipped when n
 
   const without = broken((fixture) => ({ driver: { ...fixture.driver, capabilities: { snapshot: false } } }));
   assert.equal(status(await checkAdapter(without, [{ trace, params: exampleValues }], { replays: 1 }), "L5"), "skipped");
+});
+
+test("L6 fails when a new action for one step changes the text of another", async () => {
+  // A target that writes, in every step, how many "add" actions the whole trace has.
+  const adapter = broken((fixture) => ({
+    targets: fixture.targets.map((target) => ({
+      ...target,
+      compile: (trace: TodoTrace) => {
+        const artifact = target.compile(trace);
+        const adds = trace.steps.filter((step) => step.action.kind === "add").length;
+        const lines = artifact.content.split("\n");
+        for (const range of artifact.sourceMap) lines[range.startLine - 1] += ` (${adds} adds in this trace)`;
+        return { ...artifact, content: lines.join("\n") };
+      },
+    })),
+  }));
+  const results = await checkAdapter(adapter, [{ trace: await exampleTrace(), params: exampleValues }], { replays: 1 });
+  assert.equal(status(results, "L6"), "fail");
+  assert.equal(status(results, "L3"), "pass");
+});
+
+test("L6 is skipped, not passed, when no trace has two different actions", async () => {
+  const one = await record(createFixtureAdapter(), { ...exampleExploration, steps: exampleExploration.steps.slice(0, 1) });
+  const results = await checkAdapter(createFixtureAdapter(), [{ trace: one, params: exampleValues }], { replays: 1 });
+  assert.equal(status(results, "L6"), "skipped");
 });
 
 test("L7 fails when a secret value is written in the trace", async () => {

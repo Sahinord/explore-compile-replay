@@ -10,6 +10,7 @@ const root = resolve(import.meta.dirname, "..", "..", "..");
 const TRACE = "packages/adapter-fixture/examples/anna-first-item.trace.json";
 const ADAPTER = "packages/adapter-fixture/src/index.ts";
 const DRIFTED = "packages/adapter-fixture/test/systems/drifted-adapter.ts";
+const MOVED = "packages/adapter-fixture/test/systems/moved-adapter.ts";
 const BUG_TRACE = "packages/adapter-fixture/examples/anna-new-item-ticked.trace.json";
 const BUGGY = "packages/adapter-fixture/test/systems/buggy-adapter.ts";
 const OTHER_VOCABULARY = "spec/examples/add-first-item.trace.json";
@@ -124,6 +125,53 @@ test("replay tells a bug the trace records from a regression, and says when the 
   assert.equal(fixed.code, 0);
   assert.match(fixed.out, /^fixed anna-new-item-ticked/);
   assert.match(fixed.out, /not-done-yet/);
+});
+
+test("repair accepts a new action for the step that diverged, and writes the trace and its test", async () => {
+  const dir = scratch();
+  try {
+    const copy = join(dir, "anna.trace.json");
+    copyFileSync(join(root, TRACE), copy);
+    const before = readFileSync(copy, "utf8");
+
+    const broken = await ecr(["replay", copy, "--adapter", MOVED], VALUES);
+    assert.equal(broken.code, 1);
+    assert.match(broken.err, /target_not_found  step s3/);
+
+    // A patch that gets past the step but breaks an oracle is refused, and nothing is written.
+    const wrong = await ecr(["repair", copy, "--adapter", MOVED, "--step", "s3", "--action", '{"kind":"toggleAt","index":1}'], VALUES);
+    assert.equal(wrong.code, 1);
+    assert.match(wrong.err, /^REFUSED  anna-first-item  step s3 \(still_diverges\)/);
+    assert.equal(readFileSync(copy, "utf8"), before);
+
+    const right = await ecr(["repair", copy, "--adapter", MOVED, "--step", "s3", "--action", '{"kind":"toggleAt","index":0}'], VALUES);
+    assert.equal(right.code, 0, right.err);
+    assert.match(right.out, /^repaired  anna-first-item  step s3/);
+    assert.match(right.out, /was: target_not_found  step s3/);
+    // One action changed in the trace, and nothing else.
+    const was = JSON.parse(before);
+    const now = JSON.parse(readFileSync(copy, "utf8"));
+    assert.deepEqual(now.steps[2].action, { kind: "toggleAt", index: 0 });
+    now.steps[2].action = was.steps[2].action;
+    assert.equal(`${JSON.stringify(now, null, 2)}\n`, before);
+    assert.match(readFileSync(join(dir, "anna-first-item.test.mjs"), "utf8"), /app\.toggleAt\(0\);/);
+
+    assert.equal((await ecr(["replay", copy, "--adapter", MOVED], VALUES)).code, 0);
+    assert.equal((await ecr(["compile", copy, "--adapter", MOVED, "--check"])).code, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("repair refuses a failed oracle, and says what it needs", async () => {
+  const oracle = await ecr(["repair", TRACE, "--adapter", DRIFTED, "--step", "s1", "--action", '{"kind":"add","title":"Anything"}'], VALUES);
+  assert.equal(oracle.code, 1);
+  assert.match(oracle.err, /\(oracle_failed\)/);
+  assert.match(oracle.err, /a person decides/);
+
+  assert.equal((await ecr(["repair", TRACE, "--adapter", MOVED, "--step", "s3"], VALUES)).code, 2);
+  assert.equal((await ecr(["repair", TRACE, "--adapter", MOVED, "--step", "s3", "--action", "{not json"], VALUES)).code, 2);
+  assert.match((await ecr(["repair", TRACE, "--adapter", MOVED, "--step", "s9", "--action", "{}"], VALUES)).err, /no step "s9"/);
 });
 
 test("conformance prints the report and fails when a law fails", async () => {

@@ -28,6 +28,13 @@ export class TodoApp {
     this.#items[index] = { title: item.title, done: !item.done };
   }
 
+  /** Ticks or unticks the item at a position, counted from 0. A second way to name an item. */
+  toggleAt(index: number): void {
+    const item = this.#items[index];
+    if (!item) throw new TargetNotFound(`No item at position ${index}`);
+    this.#items[index] = { title: item.title, done: !item.done };
+  }
+
   remove(title: string): void {
     this.#items.splice(this.#find(title), 1);
   }

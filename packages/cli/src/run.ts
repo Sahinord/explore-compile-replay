@@ -4,10 +4,12 @@
  *   ecr validate <trace...> [--adapter <module>]
  *   ecr compile <trace...> --adapter <module> [--target <id>] [--out <dir>] [--check]
  *   ecr replay <trace...> --adapter <module> [--target <id>]
+ *   ecr repair <trace> --adapter <module> --step <id> --action <json> [--target <id>] [--out <dir>]
  *   ecr conformance <trace...> --adapter <module>
  *
  * No command here calls a model. Exploring is done by an agent, through
- * the MCP server (not written yet).
+ * the MCP server (not written yet). A repair is proposed by an agent or a
+ * person: `ecr repair` only decides whether it is accepted.
  *
  * Status: draft.
  */
@@ -18,7 +20,7 @@ import { parseArgs } from "node:util";
 import type { Adapter, Target, TypedTrace } from "../../../spec/contract.ts";
 import { Trace, type Divergence } from "../../../spec/schema.ts";
 import { checkAdapter, conforms, formatReport } from "../../conformance/src/index.ts";
-import { TraceError, oraclesInOrder, outcomeOf, parseTrace } from "../../core/src/index.ts";
+import { RepairRefused, TraceError, oraclesInOrder, outcomeOf, parseTrace, repair as checkAndApply } from "../../core/src/index.ts";
 
 export interface Io {
   readonly out: (line: string) => void;
@@ -43,6 +45,10 @@ export const USAGE = `Usage:
       Compile each trace and run the result. No model is called.
       pass: every oracle holds. bug: the replay stops on a bug the trace records, and on nothing else.
       fixed: an oracle recorded as a bug now holds. FAIL: anything else, and the only result that fails the command.
+  ecr repair <trace> --adapter <module> --step <id> --action <json> [--target <id>] [--out <dir>]
+      Give a new action to the step a replay diverged on. The patch is accepted only if the replay
+      then gives what the trace recorded. Writes the trace and its compiled file.
+      A failed oracle is never repaired: it is a regression or an intended change, and a person decides.
   ecr conformance <trace...> --adapter <module>
       Check the adapter against the seven laws, with these traces.
 
@@ -209,6 +215,52 @@ async function replay(io: Io, paths: readonly string[], options: { adapter?: str
   return failed ? 1 : 0;
 }
 
+async function repair(
+  io: Io,
+  paths: readonly string[],
+  options: { adapter?: string; target?: string; out?: string; step?: string; action?: string },
+): Promise<ExitCode> {
+  const [path, ...others] = paths;
+  if (path === undefined || others.length > 0) throw new UsageError("ecr repair takes one trace file");
+  if (options.step === undefined || options.action === undefined) throw new UsageError("ecr repair needs --step <id> and --action <json>");
+  let action: unknown;
+  try {
+    action = JSON.parse(options.action);
+  } catch (error) {
+    throw new UsageError(`--action is not valid JSON: ${(error as Error).message}`);
+  }
+
+  const adapter = await loadAdapter(io, options.adapter);
+  const target = pickTarget(adapter, options.target);
+  const traces = loadTraces(io, adapter, [path]);
+  if (!traces) return 1;
+  const { trace } = traces[0]!;
+  if (!trace.steps.some((step) => step.id === options.step)) throw new UsageError(`Trace ${trace.id} has no step "${options.step}"`);
+
+  try {
+    const result = await checkAndApply(adapter, target, trace, { stepId: options.step, action }, { params: paramValues(io, trace) });
+    // The file is edited in place, one action replaced, so that the change reads as one hunk.
+    const file = readJson(io, path) as { steps: { id: string; action: unknown }[] };
+    for (const step of file.steps) if (step.id === options.step) step.action = action;
+    writeFileSync(resolve(io.cwd, path), `${JSON.stringify(file, null, 2)}\n`);
+    const dir = resolve(io.cwd, options.out ?? dirname(path));
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, result.artifact.path), result.artifact.content);
+
+    io.out(`repaired  ${trace.id}  step ${options.step} (${target.id})`);
+    io.out(`      was: ${describe(result.repaired)}`);
+    io.out(`      wrote ${path}`);
+    io.out(`      wrote ${join(options.out ?? dirname(path), result.artifact.path)}`);
+    return 0;
+  } catch (error) {
+    if (!(error instanceof RepairRefused)) throw error;
+    io.err(`REFUSED  ${trace.id}  step ${options.step} (${error.reason})`);
+    io.err(`      ${error.message}`);
+    for (const divergence of error.divergences) io.err(`      ${describe(divergence)}`);
+    return 1;
+  }
+}
+
 async function conformance(io: Io, paths: readonly string[], options: { adapter?: string }): Promise<ExitCode> {
   const adapter = await loadAdapter(io, options.adapter);
   const traces = loadTraces(io, adapter, paths);
@@ -229,6 +281,8 @@ export async function run(argv: readonly string[], io: Io): Promise<ExitCode> {
         adapter: { type: "string" },
         target: { type: "string" },
         out: { type: "string" },
+        step: { type: "string" },
+        action: { type: "string" },
         check: { type: "boolean", default: false },
         help: { type: "boolean", short: "h", default: false },
       },
@@ -238,7 +292,7 @@ export async function run(argv: readonly string[], io: Io): Promise<ExitCode> {
       io.out(USAGE);
       return command === undefined && !values.help ? 2 : 0;
     }
-    if (!["validate", "compile", "replay", "conformance"].includes(command)) throw new UsageError(`Unknown command "${command}"`);
+    if (!["validate", "compile", "replay", "repair", "conformance"].includes(command)) throw new UsageError(`Unknown command "${command}"`);
     if (paths.length === 0) throw new UsageError(`ecr ${command} needs at least one trace file`);
 
     const options = {
@@ -249,6 +303,13 @@ export async function run(argv: readonly string[], io: Io): Promise<ExitCode> {
     if (command === "validate") return await validate(io, paths, values.adapter);
     if (command === "compile") return await compile(io, paths, { ...options, check: values.check });
     if (command === "replay") return await replay(io, paths, options);
+    if (command === "repair") {
+      return await repair(io, paths, {
+        ...options,
+        ...(values.step === undefined ? {} : { step: values.step }),
+        ...(values.action === undefined ? {} : { action: values.action }),
+      });
+    }
     return await conformance(io, paths, options);
   } catch (error) {
     if (error instanceof UsageError || (error as { code?: string }).code?.startsWith("ERR_PARSE_ARGS")) {

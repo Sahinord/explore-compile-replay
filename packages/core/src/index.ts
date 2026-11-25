@@ -290,3 +290,5 @@ export function outcomeOf(trace: OraclePlan, result: ReplayResult): Outcome {
     only.stepId === bug.stepId;
   return stoppedOnBug ? "known_bug" : "fail";
 }
+
+export * from "./repair.ts";

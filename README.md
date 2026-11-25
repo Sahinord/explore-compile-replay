@@ -12,7 +12,7 @@ Explore-Compile-Replay is a pattern that keeps the first property and removes th
 2. **Compile.** The trace becomes a standard artifact: a Playwright test, a Maestro flow. It is a plain file you can read, review and run without ECR.
 3. **Replay.** The artifact runs in CI. No model, no tokens, the same verdict every time.
 
-When the system changes and a replay breaks, a bounded **repair** step proposes a patch as a pull request. It may fix how a step finds its target. It may never change what the test checks: if a check fails, a person decides whether it is a regression or an intended change.
+When the system changes and a replay breaks, your agent proposes a new action for the step that broke, and a bounded **repair** decides whether to accept it. A patch may fix how a step finds its target. It may never change what the test checks: if a check fails, a person decides whether it is a regression or an intended change.
 
 ```mermaid
 flowchart LR
@@ -23,7 +23,7 @@ flowchart LR
   C --> A["Artifact<br/>Playwright test, Maestro flow"]
   A --> R["Replay in CI<br/>no model"]
   R -- drift --> H["Repair<br/>bounded"]
-  H -- patch as a PR --> C
+  H -- accepted patch --> C
 ```
 
 ## The contract
@@ -67,7 +67,7 @@ The draft types are in [`spec/contract.ts`](spec/contract.ts) and the data shape
 
 ## Seven laws
 
-An adapter is correct when it obeys seven laws. A conformance kit checks them, so that anyone can write an adapter and prove it works. The kit covers four laws today and says so for the others. Full text: [`spec/laws.md`](spec/laws.md).
+An adapter is correct when it obeys seven laws. A conformance kit checks them, so that anyone can write an adapter and prove it works. The kit covers four laws today and part of the three others, and says which part. Full text: [`spec/laws.md`](spec/laws.md).
 
 | | Law | In short |
 |---|---|---|
@@ -98,8 +98,8 @@ An adapter is correct when it obeys seven laws. A conformance kit checks them, s
 | `ecr` command, [`packages/cli`](packages/cli/src/run.ts) | Runs from this repository: `validate`, `compile`, `replay`, `conformance`. Not on npm yet |
 | MCP server and skills, for an agent to explore | Not started |
 | Reference adapter, [`packages/adapter-fixture`](packages/adapter-fixture/src/adapter.ts) | Runs. A to-do list in memory, compiled to a plain `node:test` file |
-| Conformance kit, [`packages/conformance`](packages/conformance/src/index.ts) | First slice. Checks L1, L3, L5 and L7, part of L2 and L4. L6 waits for repair |
-| Repair | Not started |
+| Conformance kit, [`packages/conformance`](packages/conformance/src/index.ts) | First slice. Checks L1, L3, L5 and L7, and part of L2, L4 and L6 |
+| Repair, [`packages/core`](packages/core/src/repair.ts) | First slice: `ecr repair` accepts or refuses a new action for the step that diverged. It calls no model and proposes nothing itself. Runs on the reference adapter only: the mobile target reports no typed divergence yet |
 | Mobile adapter, [`packages/adapter-maestro`](packages/adapter-maestro/README.md) | Draft. A mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows. Checked for syntax, not yet run on a device. No driver, no typed divergences yet |
 | Web adapter, compiling to Playwright tests | Planned |
 | Drift benchmark: does a replay break, repair, or stay red when it should? | Planned |
@@ -123,7 +123,7 @@ L2  Fidelity      partial  recorded traces replay as observed; the order of acti
 L3  Traceability  pass     every step has one range, inside the file, with no overlap (1 trace, 1 target)
 L4  No model      partial  no artifact imports a known model SDK; replaying with the network closed is not checked yet
 L5  State         pass     state identical after restore (1 trace)
-L6  Safe repair   skipped  repair is not implemented yet
+L6  Safe repair   partial  a new action for one step leaves the text of the other steps (4 patches); that a behaviour change comes back as a failed oracle is not checked yet
 L7  No secret     pass     1 secret value searched in traces and artifacts, none found
 ```
 
@@ -163,6 +163,32 @@ $ pnpm ecr replay $TRACE --adapter packages/adapter-fixture/test/systems/drifted
 FAIL  anna-first-item (node-test, 95 ms)
       oracle_failed  step s1  oracle not-done-yet: Expected values to be strictly equal: true !== false
       A failed oracle is never repaired: it is a regression or an intended change, and a person decides.
+```
+
+### Repair, with bounds
+
+Point the replay at a system where an item is no longer found by its title, and it breaks on a step, not on a check:
+
+```text
+$ pnpm ecr replay $TRACE --adapter packages/adapter-fixture/test/systems/moved-adapter.ts
+FAIL  anna-first-item (node-test, 92 ms)
+      target_not_found  step s3: No item titled "Buy bread"
+```
+
+An agent, or you, looks at the system and proposes another action for that step. `ecr repair` decides. It replays first, to know which step diverged. It refuses a patch for any other step. It compiles the patched trace and refuses it if the text of another step changed. Then it replays, and accepts only if every oracle gives what the trace recorded.
+
+```text
+$ pnpm ecr repair $TRACE --adapter packages/adapter-fixture/test/systems/moved-adapter.ts --step s3 --action '{"kind":"toggleAt","index":0}'
+repaired  anna-first-item  step s3 (node-test)
+      was: target_not_found  step s3: No item titled "Buy bread"
+```
+
+A patch holds one step and one action. It cannot remove or weaken a check, because it has no way to name one. Ticking the wrong item (`"index": 1`) gets past the step, breaks the oracle `done`, and is refused. And when the replay breaks on a check, nothing is accepted at all:
+
+```text
+$ pnpm ecr repair $TRACE --adapter packages/adapter-fixture/test/systems/drifted-adapter.ts --step s1 --action '{"kind":"add","title":"x"}'
+REFUSED  anna-first-item  step s1 (oracle_failed)
+      Oracle not-done-yet failed. A failed oracle is never repaired: it is a regression or an intended change, and a person decides
 ```
 
 ### A bug is a test too
