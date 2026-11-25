@@ -28,7 +28,7 @@ test("the reference adapter obeys every law the kit can check", async () => {
   assert.equal(conforms(results), true, formatReport(results));
   assert.deepEqual(
     results.map((entry) => `${entry.law} ${entry.status}`),
-    ["L1 pass", "L2 partial", "L3 pass", "L4 partial", "L5 pass", "L6 partial", "L7 pass"],
+    ["L1 pass", "L2 pass", "L3 pass", "L4 partial", "L5 pass", "L6 partial", "L7 pass"],
   );
 });
 
@@ -63,12 +63,56 @@ test("L2 holds for a trace that records a bug, as long as the replay stops on th
 
   const same = await checkAdapter(buggy, [{ trace }], { replays: 2 });
   assert.equal(status(same, "L1"), "pass");
-  assert.equal(status(same, "L2"), "partial");
+  assert.equal(status(same, "L2"), "pass");
   assert.equal(conforms(same), true, formatReport(same));
 
   // On a system without the bug, the replay is green: it is not what was recorded.
   const other = await checkAdapter(createFixtureAdapter(), [{ trace }], { replays: 1 });
   assert.equal(status(other, "L2"), "fail");
+});
+
+test("L2 fails when the compiled file drops a check, adds an action or changes their order", async () => {
+  const cases = [{ trace: await exampleTrace(), params: exampleValues }];
+  const edited = (edit: (lines: string[]) => string[]): Fixture =>
+    broken((fixture) => ({
+      targets: fixture.targets.map((target) => ({
+        ...target,
+        compile: (trace: TodoTrace) => {
+          const artifact = target.compile(trace);
+          // The edit keeps the number of lines, so the source map still holds.
+          return { ...artifact, content: edit(artifact.content.split("\n")).join("\n") };
+        },
+      })),
+    }));
+  const detail = async (adapter: Fixture): Promise<string> => {
+    const results = await checkAdapter(adapter, cases, { replays: 1 });
+    assert.equal(status(results, "L2"), "fail");
+    return results.find((entry) => entry.law === "L2")!.detail;
+  };
+
+  // The test still passes without this check: only the instrumented system sees that it is gone.
+  const dropped = edited((lines) => lines.map((line) => (line.includes("assert.equal(app.state().length, 2)") ? "    // (check removed)" : line)));
+  assert.match(await detail(dropped), /the system did not receive|the trace plans an oracle, the system received an action/);
+
+  const added = edited((lines) => lines.map((line) => (line.includes("assert.equal(app.state().length, 2)") ? `${line} app.toggleAt(1); app.toggleAt(1);` : line)));
+  assert.match(await detail(added), /the system received an action/);
+
+  const steps = (lines: string[], id: string): number => lines.findIndex((line) => line.includes(`"kind":"step","stepId":"${id}"`)) + 1;
+  const swapped = edited((lines) => {
+    const copy = [...lines];
+    const [s3, s4] = [steps(lines, "s3"), steps(lines, "s4")];
+    [copy[s3], copy[s4]] = [lines[s4]!, lines[s3]!];
+    return copy;
+  });
+  assert.match(await detail(swapped), /did not give what the trace records|the trace plans/);
+});
+
+test("L2 is partial, not passed, when no target replays against an instrumented system", async () => {
+  const adapter = broken((fixture) => ({
+    targets: fixture.targets.map(({ replayInstrumented: _unused, ...target }) => target),
+  }));
+  const results = await checkAdapter(adapter, [{ trace: await exampleTrace(), params: exampleValues }], { replays: 1 });
+  assert.equal(status(results, "L2"), "partial");
 });
 
 test("L3 fails when two steps share a range", async () => {

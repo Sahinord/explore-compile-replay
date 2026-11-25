@@ -10,13 +10,14 @@
  * Status: draft.
  */
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import {
   defineAdapter,
   type Adapter,
+  type Received,
   type ReplayOptions,
   type SnapshotId,
   type SystemDriver,
@@ -246,41 +247,69 @@ export interface NodeTestTargetOptions {
  * The replay starts a new process: it shares no state with the driver.
  */
 export function nodeTestTarget(options: NodeTestTargetOptions): Target<TodoAction, TodoOracle> {
+  /** Runs the artifact in a new process, against the system at `system`. */
+  async function run(
+    artifact: CompiledArtifact,
+    replayOptions: ReplayOptions | undefined,
+    system: string,
+    more: (dir: string) => NodeJS.ProcessEnv = () => ({}),
+    after: (dir: string) => Promise<void> = async () => undefined,
+  ): Promise<ReplayResult> {
+    const dir = await mkdtemp(join(tmpdir(), "ecr-replay-"));
+    const env: NodeJS.ProcessEnv = { ...process.env, [SYSTEM_VARIABLE]: system, ...more(dir) };
+    // A replay started from inside a test run must not report to that run.
+    delete env.NODE_TEST_CONTEXT;
+    for (const [name, value] of Object.entries(replayOptions?.params ?? {})) env[PARAM_PREFIX + name] = value;
+
+    const started = performance.now();
+    try {
+      const file = join(dir, "replay.test.mjs");
+      await writeFile(file, artifact.content);
+      const done = await new Promise<{ code: number; stderr: string }>((resolve, fail) => {
+        execFile(process.execPath, [file], { env, timeout: 30_000 }, (error, _stdout, stderr) => {
+          if (error && typeof error.code !== "number") fail(error);
+          else resolve({ code: error ? (error.code as number) : 0, stderr });
+        });
+      });
+      const durationMs = performance.now() - started;
+      await after(dir);
+      if (done.code === 0) return { verdict: "pass", divergences: [], durationMs };
+
+      const markers = done.stderr
+        .split("\n")
+        .filter((line) => line.startsWith(DIVERGENCE_MARKER))
+        .map((line) => JSON.parse(line.slice(DIVERGENCE_MARKER.length)) as Marker);
+      if (markers.length === 0) throw new Error(`The artifact could not run:\n${done.stderr}`);
+      return { verdict: "fail", divergences: markers.map(toDivergence), durationMs };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
   return {
     id: "node-test",
     compile: compileToNodeTest,
-    async replay(artifact: CompiledArtifact, replayOptions?: ReplayOptions): Promise<ReplayResult> {
-      const env: NodeJS.ProcessEnv = { ...process.env, [SYSTEM_VARIABLE]: options.system };
-      // A replay started from inside a test run must not report to that run.
-      delete env.NODE_TEST_CONTEXT;
-      for (const [name, value] of Object.entries(replayOptions?.params ?? {})) env[PARAM_PREFIX + name] = value;
-
-      const dir = await mkdtemp(join(tmpdir(), "ecr-replay-"));
-      const started = performance.now();
-      try {
-        const file = join(dir, "replay.test.mjs");
-        await writeFile(file, artifact.content);
-        const run = await new Promise<{ code: number; stderr: string }>((done, fail) => {
-          execFile(process.execPath, [file], { env, timeout: 30_000 }, (error, _stdout, stderr) => {
-            if (error && typeof error.code !== "number") fail(error);
-            else done({ code: error ? (error.code as number) : 0, stderr });
-          });
-        });
-        const durationMs = performance.now() - started;
-        if (run.code === 0) return { verdict: "pass", divergences: [], durationMs };
-
-        const markers = run.stderr
-          .split("\n")
-          .filter((line) => line.startsWith(DIVERGENCE_MARKER))
-          .map((line) => JSON.parse(line.slice(DIVERGENCE_MARKER.length)) as Marker);
-        if (markers.length === 0) throw new Error(`The artifact could not run:\n${run.stderr}`);
-        return { verdict: "fail", divergences: markers.map(toDivergence), durationMs };
-      } finally {
-        await rm(dir, { recursive: true, force: true });
-      }
+    replay: (artifact, replayOptions) => run(artifact, replayOptions, options.system),
+    // Law L2: the same file, against the same system wrapped in one that notes each call.
+    async replayInstrumented(artifact, replayOptions) {
+      let received: Received[] = [];
+      const result = await run(
+        artifact,
+        replayOptions,
+        INSTRUMENTED_SYSTEM,
+        (dir) => ({ ECR_FIXTURE_INNER: options.system, ECR_FIXTURE_NOTES: join(dir, "notes.jsonl") }),
+        async (dir) => {
+          const notes = await readFile(join(dir, "notes.jsonl"), "utf8").catch(() => "");
+          received = notes.split("\n").filter(Boolean).map((line) => JSON.parse(line) as Received);
+        },
+      );
+      return { result, received };
     },
   };
 }
+
+/** URL of the system that wraps another one and notes what it receives. */
+export const INSTRUMENTED_SYSTEM = new URL("./instrumented.ts", import.meta.url).href;
 
 /** URL of the reference system. A replay can point at another one to simulate drift. */
 export const REFERENCE_SYSTEM = new URL("./todo.ts", import.meta.url).href;

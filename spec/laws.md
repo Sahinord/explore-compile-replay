@@ -2,7 +2,7 @@
 
 Status: draft. The wording will change before 0.1.
 
-An adapter is correct when it obeys these laws. Each law has an identifier, a statement, and the way the conformance kit checks it. A first slice of the kit is in [`packages/conformance`](../packages/conformance/src/index.ts): it covers L1, L3, L4, L5 and L7, and part of L2 and L6. The checks below are its specification.
+An adapter is correct when it obeys these laws. Each law has an identifier, a statement, and the way the conformance kit checks it. A first slice of the kit is in [`packages/conformance`](../packages/conformance/src/index.ts): it covers L1 to L5 and L7, and part of L6. The checks below are its specification.
 
 Words used here are defined in [`schema.ts`](schema.ts) (trace, step, oracle, artifact, divergence) and in [`contract.ts`](contract.ts) (driver, target).
 
@@ -19,6 +19,8 @@ The artifact runs the actions of the trace and checks its oracles, in the same o
 An oracle recorded as a bug (`observed: "failed"`) is checked like any other. On the system where it was recorded, the replay stops on that oracle and on nothing before it.
 
 **Check.** Replay the artifact against an instrumented system and compare the sequence it receives with the sequence in the trace.
+
+A target offers this with `replayInstrumented` (see [`contract.ts`](contract.ts)). Without it, the kit can only check that a recorded trace replays as observed, and reports L2 as partial.
 
 ## L3. Traceability
 

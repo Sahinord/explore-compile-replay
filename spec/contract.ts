@@ -59,6 +59,16 @@ export interface ReplayOptions {
   readonly params?: Readonly<Record<string, string>>;
 }
 
+/**
+ * What an instrumented system received during a replay (law L2).
+ * An action comes back in the vocabulary of the adapter, with the values
+ * of its parameters in place. An oracle may come back without its check,
+ * when the system only sees that its state was read.
+ */
+export type Received =
+  | { readonly kind: "action"; readonly action: unknown }
+  | { readonly kind: "oracle"; readonly check?: unknown };
+
 /** One target per artifact format. It compiles, then runs the native tool. */
 export interface Target<A, O> {
   /** "playwright", "maestro". */
@@ -67,6 +77,14 @@ export interface Target<A, O> {
   compile(trace: TypedTrace<A, O>): CompiledArtifact;
   /** Runs the artifact with its own tool and reports typed divergences. */
   replay(artifact: CompiledArtifact, options?: ReplayOptions): Promise<ReplayResult>;
+  /**
+   * Optional, for law L2: the same replay against a system that notes what
+   * it receives. Returns the result and the notes, in order.
+   */
+  replayInstrumented?(
+    artifact: CompiledArtifact,
+    options?: ReplayOptions,
+  ): Promise<{ readonly result: ReplayResult; readonly received: readonly Received[] }>;
 }
 
 export interface Adapter<State, A, O> {

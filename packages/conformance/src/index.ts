@@ -9,7 +9,7 @@
  * Status: draft.
  */
 import { connect } from "node:net";
-import type { Adapter, Target, TypedTrace } from "../../../spec/contract.ts";
+import type { Adapter, Received, Target, TypedTrace } from "../../../spec/contract.ts";
 import type { ReplayResult } from "../../../spec/schema.ts";
 import { canonicalJson, checkPatchLocality, checkSourceMap, firstBug, hashTrace, outcomeOf, resolveParams } from "../../core/src/index.ts";
 
@@ -104,6 +104,25 @@ function label<A, O>(target: Target<A, O>, testCase: ConformanceCase<A, O>): str
   return `${target.id}/${testCase.trace.id}`;
 }
 
+/** Where what the system received leaves what the trace planned, or nothing when they agree. */
+function firstDifference(planned: readonly Received[], received: readonly Received[]): string | undefined {
+  for (let index = 0; index < Math.max(planned.length, received.length); index += 1) {
+    const want = planned[index];
+    const got = received[index];
+    const place = `call ${index + 1} of ${planned.length}`;
+    if (!want) return `the system received more than the trace holds: ${canonicalJson(got)} after the last planned call`;
+    if (!got) return `the system did not receive ${place}: ${canonicalJson(want)}`;
+    if (want.kind !== got.kind) return `${place}: the trace plans an ${want.kind}, the system received an ${got.kind}`;
+    if (want.kind === "action" && got.kind === "action" && canonicalJson(want.action) !== canonicalJson(got.action)) {
+      return `${place}: the trace plans ${canonicalJson(want.action)}, the system received ${canonicalJson(got.action)}`;
+    }
+    if (want.kind === "oracle" && got.kind === "oracle" && got.check !== undefined && canonicalJson(want.check) !== canonicalJson(got.check)) {
+      return `${place}: the trace plans the check ${canonicalJson(want.check)}, the system received ${canonicalJson(got.check)}`;
+    }
+  }
+  return undefined;
+}
+
 function importsModelSdk(content: string): string | undefined {
   return MODEL_SDKS.find((name) => {
     const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
@@ -128,6 +147,7 @@ export async function checkAdapter<State, A, O>(
   const noModel: string[] = [];
   const noSecret: string[] = [];
   let secretsChecked = 0;
+  let instrumented = 0;
   const safeRepair: string[] = [];
   let patchesChecked = 0;
 
@@ -160,6 +180,29 @@ export async function checkAdapter<State, A, O>(
             ? `${name}: the replay of a recorded trace failed (${outcome(first)})`
             : `${name}: the replay did not stop on the bug the trace records (${outcome(first)})`,
         );
+      }
+
+      // L2, order: an instrumented system receives the actions and the oracles of the trace, in order,
+      // and nothing else. A trace that records a bug stops on it.
+      if (target.replayInstrumented) {
+        instrumented += 1;
+        const values = testCase.params ?? {};
+        const bug = firstBug(testCase.trace);
+        const planned: Received[] = [];
+        plan: for (const step of testCase.trace.steps) {
+          planned.push({ kind: "action", action: resolveParams(step.action, values) });
+          for (const oracle of [...step.checkpoints, ...testCase.trace.invariants]) {
+            planned.push({ kind: "oracle", check: resolveParams(oracle.check, values) });
+            if (bug && bug.stepId === step.id && bug.oracleId === oracle.id) break plan;
+          }
+        }
+        const seen = await target.replayInstrumented(artifact, testCase.params ? { params: testCase.params } : {});
+        if (outcomeOf(testCase.trace, seen.result) !== expected) {
+          fidelity.push(`${name}: on the instrumented system, the replay did not give what the trace records (${outcome(seen.result)})`);
+        } else {
+          const problem = firstDifference(planned, seen.received);
+          if (problem !== undefined) fidelity.push(`${name}: ${problem}`);
+        }
       }
 
       // L3: each step maps to one distinct range.
@@ -209,7 +252,9 @@ export async function checkAdapter<State, A, O>(
       : result("L1", "pass", `same bytes on two compilations, same verdict on ${replays} replays (${count})`),
     fidelity.length > 0
       ? result("L2", "fail", fidelity.join("; "))
-      : result("L2", "partial", "recorded traces replay as observed; the order of actions on an instrumented system is not checked yet"),
+      : instrumented < adapter.targets.length * cases.length
+        ? result("L2", "partial", "recorded traces replay as observed; no target replays against an instrumented system, so the order of what it receives is not checked")
+        : result("L2", "pass", `recorded traces replay as observed, and an instrumented system receives their actions and oracles in order, and nothing else (${count})`),
     traceability.length > 0
       ? result("L3", "fail", traceability.join("; "))
       : result("L3", "pass", `every step has one range, inside the file, with no overlap (${count})`),
