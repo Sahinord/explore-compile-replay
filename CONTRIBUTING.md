@@ -19,7 +19,7 @@ Both are planned and not started. Each one can be built in slices, and the first
 
 ### A web adapter, compiled to Playwright tests
 
-A new package, `packages/adapter-web`, next to [`packages/adapter-maestro`](packages/adapter-maestro/README.md), which is the model to follow: about 300 lines.
+A new package, `packages/adapter-web`, next to [`packages/adapter-maestro`](packages/adapter-maestro/README.md), which is the model to follow: about 400 lines.
 
 - **A vocabulary**, with zod: actions such as `goto`, `click`, `fill`, `press`, and oracles such as `visible`, `hasText`, `hasUrl`. A target is found by role and name first, then by test id, then by a CSS selector: the same order of preference as the mobile adapter, which goes from a name to an id to a point.
 - **A compiler** to a plain `@playwright/test` file that runs without ECR. A text that was typed stays a name in the file and takes its value from the environment. Each step maps to one range of lines (law L3), and the same trace compiles to the same bytes (law L1).
