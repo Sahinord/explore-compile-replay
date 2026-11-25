@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -28,10 +28,14 @@ function commands(trace: MobileTrace): string {
   return content.slice(content.indexOf("# Step t1"));
 }
 
-test("the flow in examples/ is what the compiler gives today", () => {
-  const artifact = compileToMaestro(example());
-  assert.equal(artifact.path, "anna-first-item-mobile.flow.yaml");
-  assert.equal(artifact.content, readFileSync(join(examples, artifact.path), "utf8"));
+test("the flows in examples/ are what the compiler gives today", () => {
+  const traces = readdirSync(examples).filter((name) => name.endsWith(".trace.json"));
+  assert.deepEqual(traces, ["anna-first-item-mobile.trace.json", "anna-renames-an-item-mobile.trace.json"]);
+  for (const name of traces) {
+    const artifact = compileToMaestro(parseTrace(adapter, JSON.parse(readFileSync(join(examples, name), "utf8"))));
+    assert.equal(artifact.path, name.replace(".trace.json", ".flow.yaml"));
+    assert.equal(artifact.content, readFileSync(join(examples, artifact.path), "utf8"));
+  }
 });
 
 test("L1 and L3: the same trace gives the same bytes, and each step has its own range", () => {
@@ -75,6 +79,9 @@ test("every action of the vocabulary compiles", () => {
       { kind: "swipe", direction: "LEFT" },
       { kind: "scrollUntilVisible", target: { text: "Delete account" }, direction: "DOWN" },
       { kind: "hideKeyboard" },
+      { kind: "tapOn", target: { text: "Title" }, at: "97%,50%" },
+      { kind: "longPressOn", target: { id: "row", index: 2 }, at: "10%,50%" },
+      { kind: "swipe", direction: "UP", from: "50%,80%", to: "50%,35%" },
     ),
   );
   assert.equal(
@@ -107,6 +114,19 @@ test("every action of the vocabulary compiles", () => {
     direction: DOWN
 # Step t10
 - hideKeyboard
+# Step t11
+- tapOn:
+    text: "Title"
+    point: "97%,50%"
+# Step t12
+- longPressOn:
+    id: "row"
+    index: 2
+    point: "10%,50%"
+# Step t13
+- swipe:
+    start: "50%,80%"
+    end: "50%,35%"
 `,
   );
 });
@@ -122,6 +142,17 @@ test("the vocabulary refuses a check on a point, and an unknown action", () => {
   assert.equal(adapter.oracles.safeParse({ kind: "visible", target: { point: "50%,50%" } }).success, false);
   assert.equal(adapter.actions.safeParse({ kind: "shake" }).success, false);
   assert.equal(adapter.actions.safeParse({ kind: "inputText", text: { param: "not a name" } }).success, false);
+});
+
+test("the vocabulary refuses a place in a point, and a swipe whose ends do not go with its direction", () => {
+  const ok = (action: unknown): boolean => adapter.actions.safeParse(action).success;
+  assert.equal(ok({ kind: "tapOn", target: { text: "Title" }, at: "97%,50%" }), true);
+  assert.equal(ok({ kind: "tapOn", target: { point: "50%,50%" }, at: "97%,50%" }), false);
+  assert.equal(ok({ kind: "longPressOn", target: { id: "row" }, at: "right" }), false);
+  assert.equal(ok({ kind: "swipe", direction: "UP", from: "50%,80%", to: "50%,35%" }), true);
+  assert.equal(ok({ kind: "swipe", direction: "UP", from: "50%,80%" }), false);
+  assert.equal(ok({ kind: "swipe", direction: "DOWN", from: "50%,80%", to: "50%,35%" }), false);
+  assert.equal(ok({ kind: "swipe", from: "50%,80%", to: "50%,35%" }), false);
 });
 
 test("evidence is carried by the trace and changes no command of the flow", () => {

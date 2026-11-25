@@ -1,0 +1,34 @@
+# Compiled by Explore-Compile-Replay: https://github.com/pierridotite/explore-compile-replay
+# Trace: anna-renames-an-item-mobile
+# Trace hash: sha256:f5b699ee2999e655f33c8dd96a665c33b7eec30e4885a2fcc97b46f79c8d23b1
+# Do not edit by hand. Change the trace and compile again.
+# Run: maestro test -e NEW_WORD=<value> <this file>
+appId: com.example.todo
+name: "anna: Change the last word of an item far down her list."
+---
+# Step s1: She opens the app. She is already signed in.
+- launchApp
+# Step s2: She moves her list up by half a screen. The two ends of the gesture are kept, so the replay moves it as far.
+- swipe:
+    start: "50%,80%"
+    end: "50%,35%"
+# Step s3: She keeps her finger on the item, on its left: the right of the row is the delete button.
+- longPressOn:
+    text: "Buy bread"
+    point: "10%,50%"
+# Oracle editor-shown
+- assertVisible:
+    id: "title_field"
+# Step s4: She taps the title at its end. What she erases next is then the end of the text, not its middle.
+- tapOn:
+    id: "title_field"
+    point: "97%,50%"
+# Step s5: She erases the last word.
+- eraseText: 5
+# Step s6: She types the new one.
+- inputText: "${NEW_WORD}"
+# Step s7: She confirms with the keyboard.
+- pressKey: Enter
+# Oracle editor-closed
+- assertNotVisible:
+    id: "title_field"

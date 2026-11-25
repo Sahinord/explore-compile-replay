@@ -1,0 +1,174 @@
+{
+  "schema": "ecr.trace/0",
+  "id": "anna-renames-an-item-mobile",
+  "adapter": {
+    "id": "mobile-maestro"
+  },
+  "persona": {
+    "id": "anna",
+    "profile": "Retired teacher, 68, low patience with jargon, uses large text.",
+    "goal": "Change the last word of an item far down her list.",
+    "locale": "en-GB",
+    "context": {
+      "platform": "android",
+      "device": "small phone",
+      "fontScale": 1.3
+    }
+  },
+  "params": [
+    {
+      "name": "NEW_WORD",
+      "secret": false,
+      "description": "The word she types in place of the last one"
+    }
+  ],
+  "invariants": [],
+  "steps": [
+    {
+      "id": "s1",
+      "intent": "She opens the app. She is already signed in.",
+      "action": {
+        "kind": "launchApp",
+        "appId": "com.example.todo"
+      },
+      "checkpoints": []
+    },
+    {
+      "id": "s2",
+      "intent": "She moves her list up by half a screen. The two ends of the gesture are kept, so the replay moves it as far.",
+      "action": {
+        "kind": "swipe",
+        "direction": "UP",
+        "from": "50%,80%",
+        "to": "50%,35%"
+      },
+      "checkpoints": [],
+      "evidence": {
+        "screen": "01",
+        "from": [
+          540,
+          1920
+        ],
+        "to": [
+          540,
+          840
+        ],
+        "size": [
+          1080,
+          2400
+        ]
+      }
+    },
+    {
+      "id": "s3",
+      "intent": "She keeps her finger on the item, on its left: the right of the row is the delete button.",
+      "action": {
+        "kind": "longPressOn",
+        "target": {
+          "text": "Buy bread"
+        },
+        "at": "10%,50%"
+      },
+      "checkpoints": [
+        {
+          "id": "editor-shown",
+          "check": {
+            "kind": "visible",
+            "target": {
+              "id": "title_field"
+            }
+          }
+        }
+      ],
+      "evidence": {
+        "screen": "02",
+        "point": [
+          140,
+          1210
+        ],
+        "size": [
+          1080,
+          2400
+        ],
+        "bounds": [
+          40,
+          1150,
+          1040,
+          1270
+        ]
+      }
+    },
+    {
+      "id": "s4",
+      "intent": "She taps the title at its end. What she erases next is then the end of the text, not its middle.",
+      "action": {
+        "kind": "tapOn",
+        "target": {
+          "id": "title_field"
+        },
+        "at": "97%,50%"
+      },
+      "checkpoints": [],
+      "evidence": {
+        "screen": "03",
+        "point": [
+          1010,
+          460
+        ],
+        "size": [
+          1080,
+          2400
+        ],
+        "bounds": [
+          40,
+          400,
+          1040,
+          520
+        ]
+      }
+    },
+    {
+      "id": "s5",
+      "intent": "She erases the last word.",
+      "action": {
+        "kind": "eraseText",
+        "characters": 5
+      },
+      "checkpoints": []
+    },
+    {
+      "id": "s6",
+      "intent": "She types the new one.",
+      "action": {
+        "kind": "inputText",
+        "text": {
+          "param": "NEW_WORD"
+        }
+      },
+      "checkpoints": []
+    },
+    {
+      "id": "s7",
+      "intent": "She confirms with the keyboard.",
+      "action": {
+        "kind": "pressKey",
+        "key": "Enter"
+      },
+      "checkpoints": [
+        {
+          "id": "editor-closed",
+          "check": {
+            "kind": "notVisible",
+            "target": {
+              "id": "title_field"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "exploredAt": "2026-11-25T12:00:00.000Z",
+    "agent": "hand-written example"
+  }
+}

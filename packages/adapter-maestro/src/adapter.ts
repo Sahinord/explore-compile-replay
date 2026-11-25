@@ -29,6 +29,9 @@ import { hashTrace, isParamRef } from "../../core/src/index.ts";
 const Text = z.union([z.string().min(1), z.strictObject({ param: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/) })]);
 type Text = z.infer<typeof Text>;
 
+/** A point in percent: of the screen, or of an element when it says where in the element. */
+const Percent = z.string().regex(/^\d{1,3}%,\d{1,3}%$/);
+
 /**
  * How a step finds its target. In order of preference: an accessibility id,
  * a visible text, and as a last resort a point on the screen in percent.
@@ -36,9 +39,32 @@ type Text = z.infer<typeof Text>;
 const Selector = z.union([
   z.strictObject({ id: z.string().min(1), index: z.number().int().nonnegative().optional() }),
   z.strictObject({ text: Text, index: z.number().int().nonnegative().optional() }),
-  z.strictObject({ point: z.string().regex(/^\d{1,3}%,\d{1,3}%$/) }),
+  z.strictObject({ point: Percent }),
 ]);
 type Selector = z.infer<typeof Selector>;
+
+/**
+ * `at` says where in the element a press lands, in percent of its box
+ * ("0%,0%" is its top left corner). Without it the press lands on the centre.
+ * It has no meaning on a point of the screen.
+ */
+const atIsInsideAnElement = (action: { target: Selector; at?: string | undefined }): boolean => action.at === undefined || !("point" in action.target);
+const atNeedsAnElement = { message: "`at` says where in an element: the target cannot be a point", path: ["at"] };
+
+/**
+ * A swipe has the direction the finger moves in. `from` and `to` are the two
+ * points of the screen where it starts and stops: with them the replay makes
+ * the same gesture, without them a gesture of Maestro's own length.
+ */
+const Direction = z.enum(["UP", "DOWN", "LEFT", "RIGHT"]);
+function movesIn(direction: z.infer<typeof Direction>, from: string, to: string): boolean {
+  const [x1 = 0, y1 = 0] = from.split(",").map((part) => parseInt(part, 10));
+  const [x2 = 0, y2 = 0] = to.split(",").map((part) => parseInt(part, 10));
+  return { UP: y2 < y1, DOWN: y2 > y1, LEFT: x2 < x1, RIGHT: x2 > x1 }[direction];
+}
+const swipeEndsAgree = (action: { direction: z.infer<typeof Direction>; from?: string | undefined; to?: string | undefined }): boolean =>
+  action.from === undefined || action.to === undefined ? action.from === action.to : movesIn(action.direction, action.from, action.to);
+const swipeEndsMustAgree = { message: "`from` and `to` go together, and the finger must move in the `direction` of the swipe" };
 
 /** A selector that names an element. A check cannot be made on a point. */
 const ElementSelector = z.union([
@@ -48,13 +74,13 @@ const ElementSelector = z.union([
 
 export const actions = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("launchApp"), appId: z.string().regex(/^[A-Za-z0-9._-]+$/), clearState: z.boolean().optional() }),
-  z.strictObject({ kind: z.literal("tapOn"), target: Selector }),
-  z.strictObject({ kind: z.literal("longPressOn"), target: Selector }),
+  z.strictObject({ kind: z.literal("tapOn"), target: Selector, at: Percent.optional() }).refine(atIsInsideAnElement, atNeedsAnElement),
+  z.strictObject({ kind: z.literal("longPressOn"), target: Selector, at: Percent.optional() }).refine(atIsInsideAnElement, atNeedsAnElement),
   z.strictObject({ kind: z.literal("inputText"), text: Text }),
   z.strictObject({ kind: z.literal("eraseText"), characters: z.number().int().positive().optional() }),
   z.strictObject({ kind: z.literal("pressKey"), key: z.enum(["Enter", "Backspace", "Home", "Back"]) }),
-  z.strictObject({ kind: z.literal("swipe"), direction: z.enum(["UP", "DOWN", "LEFT", "RIGHT"]) }),
-  z.strictObject({ kind: z.literal("scrollUntilVisible"), target: ElementSelector, direction: z.enum(["UP", "DOWN", "LEFT", "RIGHT"]).optional() }),
+  z.strictObject({ kind: z.literal("swipe"), direction: Direction, from: Percent.optional(), to: Percent.optional() }).refine(swipeEndsAgree, swipeEndsMustAgree),
+  z.strictObject({ kind: z.literal("scrollUntilVisible"), target: ElementSelector, direction: Direction.optional() }),
   z.strictObject({ kind: z.literal("hideKeyboard") }),
 ]);
 export type MobileAction = z.infer<typeof actions>;
@@ -101,7 +127,7 @@ function actionLines(action: MobileAction, where: string): string[] {
       return action.clearState === undefined ? ["- launchApp"] : ["- launchApp:", `    clearState: ${action.clearState}`];
     case "tapOn":
     case "longPressOn":
-      return [`- ${action.kind}:`, ...selectorLines(action.target, where)];
+      return [`- ${action.kind}:`, ...selectorLines(action.target, where), ...(action.at === undefined ? [] : [`    point: ${quoted(action.at)}`])];
     case "inputText":
       return [`- inputText: ${plainText(action.text, where)}`];
     case "eraseText":
@@ -109,7 +135,9 @@ function actionLines(action: MobileAction, where: string): string[] {
     case "pressKey":
       return [action.key === "Back" ? "- back" : `- pressKey: ${action.key}`];
     case "swipe":
-      return ["- swipe:", `    direction: ${action.direction}`];
+      return action.from === undefined || action.to === undefined
+        ? ["- swipe:", `    direction: ${action.direction}`]
+        : ["- swipe:", `    start: ${quoted(action.from)}`, `    end: ${quoted(action.to)}`];
     case "scrollUntilVisible":
       return [
         "- scrollUntilVisible:",

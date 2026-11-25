@@ -21,6 +21,8 @@ Oracles: `visible`, `notVisible`.
 
 A step finds its target by accessibility id, by visible text, or as a last resort by a point in percent of the screen. A check cannot be made on a point. The first step must be `launchApp`: it names the app.
 
+A tap or a long press lands on the centre of its element. An optional `at`, in percent of the element's box, says where else: `"at": "97%,50%"` is its right end. In a text field written from left to right, a tap there puts the cursor after the text, and `eraseText` then erases the end of the text: Maestro erases before the cursor. A swipe has a `direction`. With an optional `from` and `to`, two points in percent of the screen, the replay makes the same gesture, and without them a gesture of Maestro's own length. A second example uses the three: [the trace](examples/anna-renames-an-item-mobile.trace.json) and [the flow](examples/anna-renames-an-item-mobile.flow.yaml).
+
 The types are in [`src/adapter.ts`](src/adapter.ts).
 
 ## How a trace is written
@@ -79,3 +81,5 @@ To keep what Maestro wrote for one replay (its record, its screenshots), set `EC
 - How a failed step is classified (`target_not_found`, `timeout`, `action_failed`) is read from the words of Maestro's message. This is not yet checked on a device.
 - A repair has not been tried on a device.
 - A tap on a point is replayed as is. It breaks on another screen size.
+- `eraseText` erases before the cursor, and Maestro has no command that moves the cursor to the end of a text. A tap with `at` on the end of the field puts it there when the text is shorter than the field.
+- Two rules are checked by `ecr validate` and are not in [`vocabulary.schema.json`](vocabulary.schema.json), which cannot say them: `at` is refused when the target is a point, and `from` and `to` go together and move in the `direction`.
