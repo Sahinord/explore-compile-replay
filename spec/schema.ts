@@ -78,6 +78,12 @@ export const Trace = z.object({
   /** Oracles that must hold after every step. */
   invariants: z.array(Oracle).default([]),
   steps: z.array(Step).min(1),
+  /**
+   * What was seen that belongs to no single step, such as the last screen.
+   * Same rules as the evidence of a step: for people and tools, never used
+   * to compile or to replay, never a secret.
+   */
+  evidence: z.record(z.string(), z.unknown()).optional(),
   /** How the trace was produced. Kept for audit, never used at replay. */
   provenance: z.object({
     exploredAt: z.iso.datetime(),

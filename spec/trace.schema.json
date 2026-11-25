@@ -178,6 +178,13 @@
         ]
       }
     },
+    "evidence": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
     "provenance": {
       "type": "object",
       "properties": {
