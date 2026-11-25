@@ -141,3 +141,12 @@ Every file holds: `rq`, `kind`, `ecr_commit`, `mat_commit`, `app_tag`, `app_comm
 
 **3. 2026-11-25, after the explorations, before any replay of a measured trace. The binary of the app.** Two builds of LocalSend from the same commit `44f48f18a5503c43873570ff489d27ff1983e198`, by the same recipe, gave two APKs with different SHA-256 (`23301784…` in run 45701272440 and `776d184f…` in run 45706788156 of mobile-agent-testers): the build is not byte-reproducible. The app is therefore pinned by its source commit, and every result file keeps the SHA-256 of the APK it ran on. Every replay on the unchanged app, the one that keeps or drops a trace and the 20 that measure stability, uses one APK for all traces: the build of run 45701272440, kept as a file next to the results. A mutant is built by the same recipe from the source and its patch, so its binary differs from that APK by more than the patch; its source differs by the patch only.
 
+**4. 2026-11-25, before any check is written. Who writes the checks.** The author chose that the checks of the measured traces are written by the AI assistant that helps write this paper, not by a person. The assistant works from the decrypted outputs of the two exploration runs: for each step, the trace, the screenshot and the element tree, and the report and findings of the agent. It follows a rule fixed now, before it opens any output:
+- only the 10 paths whose first replay passed;
+- the steps are never changed; only checks are added, each naming an element by its text or its identifier, never by an index or a position;
+- on each screen that a step reaches and that differs from the screen before, at most two checks: one `visible` check on a text that names the screen (a title, a heading or a selected tab), and, when the intent of the step is to change something on screen, one check on that change;
+- no check on a text that varies between installs or runs: the name of the device, addresses, times, the devices found nearby;
+- a finding becomes a check recorded as failed only if the author confirms it from its screenshot.
+
+Consequences. The time a person spends turning a path into a test (RQ1) is not measured, and the counters of the map are not used. The cost of this step for the assistant is not measured either. The paper says that the oracles of the evaluation were written by an AI assistant under this rule. A trace is still kept only if its first replay with its checks gives what it recorded. The reader who judges each accepted repair (section 4, step 5) is still the author.
+
