@@ -1,5 +1,7 @@
 # Explore-Compile-Replay (ECR)
 
+<a href="https://discord.gg/WuaCANscr8"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/discord-join-dark.svg"><img src="assets/discord-join-light.svg" alt="Join us on Discord" width="160" height="54"></picture></a>
+
 **Let an agent explore your system once. Compile what it did into a standard test. Replay it in CI with no model.**
 
 > **Status: early draft, opened on 24 November 2026.** The contract is being written in the open. A first slice runs end to end, on a toy system only: no real app is supported yet. What exists today is listed [below](#what-exists-today).
@@ -245,6 +247,8 @@ ECR generalizes [mobile-agent-testers](https://github.com/pierridotite/mobile-ag
 ## Feedback
 
 The contract is the thing to challenge right now. If you maintain a test tool or an agent framework, or if you would write an adapter, open an issue and say what would not fit your system.
+
+To talk it through, or to follow the work as it happens, join the [Discord](https://discord.gg/WuaCANscr8). It is shared with mobile-agent-testers.
 
 ## License
 
