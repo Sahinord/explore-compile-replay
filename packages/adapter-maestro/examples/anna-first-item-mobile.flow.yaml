@@ -1,6 +1,6 @@
 # Compiled by Explore-Compile-Replay: https://github.com/pierridotite/explore-compile-replay
 # Trace: anna-first-item-mobile
-# Trace hash: sha256:89b08fd92d3b6189f28c775f7867ae40e4d842d81a4a668700ce7a6f8aca4151
+# Trace hash: sha256:fba3d6dd9cad86745d143810879e070472f838020ab38c614c25dd0b0891e77c
 # Do not edit by hand. Change the trace and compile again.
 # Run: maestro test -e ITEM_TITLE=<value> -e ACCOUNT_PASSWORD=<value> <this file>
 appId: com.example.todo

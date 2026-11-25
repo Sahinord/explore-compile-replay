@@ -43,7 +43,7 @@ For mobile traces, the convention is:
 | `size` | The screen, `[width, height]` in the same pixels |
 | `bounds` | The element that was under the finger, `[left, top, right, bottom]` |
 
-The screen after a step is the `screen` of the next step. No key is required, and a tool must accept a step with no evidence.
+The screen after a step is the `screen` of the next step. The screen after the last step is `evidence.lastScreen`, at the top of the trace. No key is required, and a tool must accept a step with no evidence.
 
 The vocabulary is also published as a JSON Schema, for tools that are not written in TypeScript: [`vocabulary.schema.json`](vocabulary.schema.json). The schema of a whole trace is [`spec/trace.schema.json`](../../spec/trace.schema.json).
 
