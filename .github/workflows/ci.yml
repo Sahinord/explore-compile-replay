@@ -21,6 +21,23 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
+  # Law L4: compile and replay inside a network namespace that only has the loopback.
+  # The kit checks that nothing outside can be reached, then runs every law.
+  no-network:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Conformance with the network closed
+        run: |
+          sudo env "PATH=$PATH" "RUN_AS=$(id -u)" "RUN_HOME=$HOME" unshare -n bash -c \
+            'set -eo pipefail; ip link set lo up; sudo -u "#$RUN_AS" env "PATH=$PATH" "HOME=$RUN_HOME" pnpm conformance --network-closed | tee /tmp/report.txt; grep -q "^L4  No model      pass" /tmp/report.txt'
+
   # The compiled Maestro flows are checked by Maestro itself. Syntax only: the device run is in device.yml.
   maestro-syntax:
     runs-on: ubuntu-latest

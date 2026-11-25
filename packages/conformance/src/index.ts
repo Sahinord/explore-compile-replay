@@ -8,6 +8,7 @@
  *
  * Status: draft.
  */
+import { connect } from "node:net";
 import type { Adapter, Target, TypedTrace } from "../../../spec/contract.ts";
 import type { ReplayResult } from "../../../spec/schema.ts";
 import { canonicalJson, checkPatchLocality, checkSourceMap, firstBug, hashTrace, outcomeOf, resolveParams } from "../../core/src/index.ts";
@@ -35,6 +36,35 @@ export interface ConformanceCase<A, O> {
 export interface ConformanceOptions {
   /** How many times each artifact is replayed for law L1. Default: 3. */
   readonly replays?: number;
+  /**
+   * Set when the caller has closed the network around this run: a network
+   * namespace, a firewall. The kit checks that it is closed. Every compile
+   * and replay of the run then counts for law L4.
+   */
+  readonly networkClosed?: boolean;
+  /** How the kit checks it: resolves to the address it could reach, or to nothing. Default: `reachableAddress`. */
+  readonly probe?: () => Promise<string | undefined>;
+}
+
+/** Public addresses that answer on port 443. Literal, so that no name has to be resolved. */
+const PROBES = ["1.1.1.1", "8.8.8.8", "9.9.9.9"];
+
+/** The first public address a TCP connection reaches within the delay, or nothing when the network is closed. */
+export async function reachableAddress(timeoutMs = 1500): Promise<string | undefined> {
+  const attempts = PROBES.map(
+    (host) =>
+      new Promise<string | undefined>((done) => {
+        const socket = connect({ host, port: 443 });
+        const finish = (reached: boolean): void => {
+          socket.destroy();
+          done(reached ? `${host}:443` : undefined);
+        };
+        socket.setTimeout(timeoutMs, () => finish(false));
+        socket.once("connect", () => finish(true));
+        socket.once("error", () => finish(false));
+      }),
+  );
+  return (await Promise.all(attempts)).find((address) => address !== undefined);
 }
 
 const TITLES: Record<LawId, string> = {
@@ -89,6 +119,8 @@ export async function checkAdapter<State, A, O>(
   if (cases.length === 0) throw new Error("The conformance kit needs at least one trace");
   if (adapter.targets.length === 0) throw new Error("The adapter declares no target");
   const replays = options.replays ?? 3;
+  // Checked first, so that a network that is open by mistake is seen before anything runs.
+  const reached = options.networkClosed ? await (options.probe ?? reachableAddress)() : undefined;
 
   const determinism: string[] = [];
   const fidelity: string[] = [];
@@ -183,7 +215,11 @@ export async function checkAdapter<State, A, O>(
       : result("L3", "pass", `every step has one range, inside the file, with no overlap (${count})`),
     noModel.length > 0
       ? result("L4", "fail", noModel.join("; "))
-      : result("L4", "partial", "no artifact imports a known model SDK; replaying with the network closed is not checked yet"),
+      : !options.networkClosed
+        ? result("L4", "partial", "no artifact imports a known model SDK; this run did not have the network closed")
+        : reached !== undefined
+          ? result("L4", "fail", `the network was declared closed, but a connection to ${reached} went through`)
+          : result("L4", "pass", `no artifact imports a known model SDK, and every compile and replay ran with the network closed (${count})`),
     await checkState(adapter, cases),
     safeRepair.length > 0
       ? result("L6", "fail", [...new Set(safeRepair)].join("; "))

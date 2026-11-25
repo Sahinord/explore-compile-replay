@@ -4,6 +4,7 @@
  *
  *   pnpm conformance           print the report, fail if a law fails
  *   pnpm conformance --write   also rewrite the files in examples/
+ *   pnpm conformance --network-closed   when the network is closed around the command: law L4 can then pass
  *
  * The second example records a bug. It is explored on a system that has
  * the bug, and it is written to examples/ too.
@@ -32,11 +33,12 @@ if (process.argv.includes("--write")) {
   }
 }
 
-const results = await checkAdapter(adapter, [{ trace, params: exampleValues }]);
+const networkClosed = process.argv.includes("--network-closed");
+const results = await checkAdapter(adapter, [{ trace, params: exampleValues }], { networkClosed });
 console.log(`Conformance of adapter "${adapter.id}"\n`);
 console.log(formatReport(results));
 
-const withBug = await checkAdapter(buggy, [{ trace: bug }]);
+const withBug = await checkAdapter(buggy, [{ trace: bug }], { networkClosed });
 console.log(`\nThe same adapter on a system with a bug, with a trace that records it\n`);
 console.log(formatReport(withBug));
 if (!conforms(results) || !conforms(withBug)) process.exit(1);

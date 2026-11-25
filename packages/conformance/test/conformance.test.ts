@@ -100,6 +100,15 @@ test("L4 fails when the artifact imports a model SDK", async () => {
   assert.equal(status(results, "L4"), "fail");
 });
 
+test("L4 passes only when the network is closed, and fails when it was declared closed but is open", async () => {
+  const cases = [{ trace: await exampleTrace(), params: exampleValues }];
+  const closed = await checkAdapter(createFixtureAdapter(), cases, { replays: 1, networkClosed: true, probe: async () => undefined });
+  assert.equal(status(closed, "L4"), "pass");
+  const open = await checkAdapter(createFixtureAdapter(), cases, { replays: 1, networkClosed: true, probe: async () => "1.1.1.1:443" });
+  assert.equal(status(open, "L4"), "fail");
+  assert.equal(conforms(open), false);
+});
+
 test("L5 fails when restore does not bring the state back, and is skipped when not declared", async () => {
   const trace = await exampleTrace();
   const forgetful = broken((fixture) => ({ driver: { ...fixture.driver, restore: async () => {} } }));

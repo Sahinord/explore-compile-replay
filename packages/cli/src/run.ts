@@ -5,7 +5,7 @@
  *   ecr compile <trace...> --adapter <module> [--target <id>] [--out <dir>] [--check]
  *   ecr replay <trace...> --adapter <module> [--target <id>]
  *   ecr repair <trace> --adapter <module> --step <id> --action <json> [--target <id>] [--out <dir>]
- *   ecr conformance <trace...> --adapter <module>
+ *   ecr conformance <trace...> --adapter <module> [--network-closed]
  *
  * No command here calls a model. Exploring is done by an agent, through
  * the MCP server (not written yet). A repair is proposed by an agent or a
@@ -49,8 +49,10 @@ export const USAGE = `Usage:
       Give a new action to the step a replay diverged on. The patch is accepted only if the replay
       then gives what the trace recorded. Writes the trace and its compiled file.
       A failed oracle is never repaired: it is a regression or an intended change, and a person decides.
-  ecr conformance <trace...> --adapter <module>
+  ecr conformance <trace...> --adapter <module> [--network-closed]
       Check the adapter against the seven laws, with these traces.
+      With --network-closed, you state that you closed the network around this command. It is checked,
+      and law L4 (no model) can then pass.
 
   <module> is a file whose default export is an adapter (see spec/contract.ts).
   A parameter NAME of a trace takes its value from the environment variable ${PARAM_PREFIX}NAME.`;
@@ -261,12 +263,12 @@ async function repair(
   }
 }
 
-async function conformance(io: Io, paths: readonly string[], options: { adapter?: string }): Promise<ExitCode> {
+async function conformance(io: Io, paths: readonly string[], options: { adapter?: string; networkClosed: boolean }): Promise<ExitCode> {
   const adapter = await loadAdapter(io, options.adapter);
   const traces = loadTraces(io, adapter, paths);
   if (!traces) return 1;
   const cases = traces.map(({ trace }) => ({ trace, params: paramValues(io, trace) }));
-  const results = await checkAdapter(adapter, cases);
+  const results = await checkAdapter(adapter, cases, { networkClosed: options.networkClosed });
   io.out(`Conformance of adapter "${adapter.id}"\n`);
   io.out(formatReport(results));
   return conforms(results) ? 0 : 1;
@@ -284,6 +286,7 @@ export async function run(argv: readonly string[], io: Io): Promise<ExitCode> {
         step: { type: "string" },
         action: { type: "string" },
         check: { type: "boolean", default: false },
+        "network-closed": { type: "boolean", default: false },
         help: { type: "boolean", short: "h", default: false },
       },
     });
@@ -310,7 +313,7 @@ export async function run(argv: readonly string[], io: Io): Promise<ExitCode> {
         ...(values.action === undefined ? {} : { action: values.action }),
       });
     }
-    return await conformance(io, paths, options);
+    return await conformance(io, paths, { ...options, networkClosed: values["network-closed"] });
   } catch (error) {
     if (error instanceof UsageError || (error as { code?: string }).code?.startsWith("ERR_PARSE_ARGS")) {
       io.err(`ecr: ${(error as Error).message}`);

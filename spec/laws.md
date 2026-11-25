@@ -2,7 +2,7 @@
 
 Status: draft. The wording will change before 0.1.
 
-An adapter is correct when it obeys these laws. Each law has an identifier, a statement, and the way the conformance kit checks it. A first slice of the kit is in [`packages/conformance`](../packages/conformance/src/index.ts): it covers L1, L3, L5 and L7, and part of L2, L4 and L6. The checks below are its specification.
+An adapter is correct when it obeys these laws. Each law has an identifier, a statement, and the way the conformance kit checks it. A first slice of the kit is in [`packages/conformance`](../packages/conformance/src/index.ts): it covers L1, L3, L4, L5 and L7, and part of L2 and L6. The checks below are its specification.
 
 Words used here are defined in [`schema.ts`](schema.ts) (trace, step, oracle, artifact, divergence) and in [`contract.ts`](contract.ts) (driver, target).
 
@@ -31,6 +31,8 @@ Each step of the trace maps to one distinct range of the artifact, through the s
 Compiling and replaying call no model.
 
 **Check.** Run compile and replay with the network closed, and verify that the core and the targets import no LLM SDK.
+
+The kit does not close the network itself. The caller closes it (a network namespace, a firewall) and says so with `--network-closed`. The kit then checks that no public address can be reached before it runs anything. Without that flag, L4 is reported as partial.
 
 ## L5. State
 

@@ -69,7 +69,7 @@ The draft types are in [`spec/contract.ts`](spec/contract.ts) and the data shape
 
 ## Seven laws
 
-An adapter is correct when it obeys seven laws. A conformance kit checks them, so that anyone can write an adapter and prove it works. The kit covers four laws today and part of the three others, and says which part. Full text: [`spec/laws.md`](spec/laws.md).
+An adapter is correct when it obeys seven laws. A conformance kit checks them, so that anyone can write an adapter and prove it works. The kit covers five laws today and part of the two others, and says which part. Full text: [`spec/laws.md`](spec/laws.md).
 
 | | Law | In short |
 |---|---|---|
@@ -100,7 +100,7 @@ An adapter is correct when it obeys seven laws. A conformance kit checks them, s
 | `ecr` command, [`packages/cli`](packages/cli/src/run.ts) | Runs from this repository: `validate`, `compile`, `replay`, `conformance`. Not on npm yet |
 | MCP server and skills, for an agent to explore | Not started |
 | Reference adapter, [`packages/adapter-fixture`](packages/adapter-fixture/src/adapter.ts) | Runs. A to-do list in memory, compiled to a plain `node:test` file |
-| Conformance kit, [`packages/conformance`](packages/conformance/src/index.ts) | First slice. Checks L1, L3, L5 and L7, and part of L2, L4 and L6 |
+| Conformance kit, [`packages/conformance`](packages/conformance/src/index.ts) | First slice. Checks L1, L3, L4 (with the network closed), L5 and L7, and part of L2 and L6 |
 | Repair, [`packages/core`](packages/core/src/repair.ts) | First slice: `ecr repair` accepts or refuses a new action for the step that diverged. It calls no model and proposes nothing itself. Runs on the reference adapter only: the mobile target reports no typed divergence yet |
 | Mobile adapter, [`packages/adapter-maestro`](packages/adapter-maestro/README.md) | Draft. A mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows. Checked for syntax, not yet run on a device. No driver, no typed divergences yet |
 | Web adapter, compiling to Playwright tests | Planned |
@@ -123,13 +123,13 @@ The report for the reference adapter:
 L1  Determinism   pass     same bytes on two compilations, same verdict on 3 replays (1 trace, 1 target)
 L2  Fidelity      partial  recorded traces replay as observed; the order of actions on an instrumented system is not checked yet
 L3  Traceability  pass     every step has one range, inside the file, with no overlap (1 trace, 1 target)
-L4  No model      partial  no artifact imports a known model SDK; replaying with the network closed is not checked yet
+L4  No model      partial  no artifact imports a known model SDK; this run did not have the network closed
 L5  State         pass     state identical after restore (1 trace)
 L6  Safe repair   partial  a new action for one step leaves the text of the other steps (4 patches); that a behaviour change comes back as a failed oracle is not checked yet
 L7  No secret     pass     1 secret value searched in traces and artifacts, none found
 ```
 
-"partial" and "skipped" are not passes. They mark what the kit cannot prove yet.
+"partial" and "skipped" are not passes. They mark what the kit cannot prove yet, or could not prove in this run. L4 passes when the network is closed around the command: CI runs `pnpm conformance --network-closed` in a network namespace that only has the loopback.
 
 To see the three steps on one example, read these two files side by side:
 
