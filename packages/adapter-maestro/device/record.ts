@@ -21,8 +21,9 @@ if (root === undefined || !existsSync(root)) {
   process.exit(0);
 }
 const all = files(root);
-console.log(`${all.length} files kept: ${[...new Set(all.map((path) => path.slice(path.lastIndexOf(".") + 1)))].join(", ")}`);
-for (const path of all.filter((entry) => /commands-.*\.json$/.test(entry))) {
+console.log(`${all.length} files kept:`);
+for (const path of all) console.log(`  ${path.slice(root.length + 1)}`);
+for (const path of all.filter((entry) => entry.endsWith(".json"))) {
   console.log(`\n== ${path.slice(root.length + 1)}`);
   const text = readFileSync(path, "utf8");
   try {

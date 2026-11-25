@@ -246,6 +246,33 @@ export function failedCommand(recorded: unknown, commands: readonly FlowCommand[
   return message === undefined ? { command } : { command, message };
 }
 
+/**
+ * The same answer from what Maestro prints when it is not in a terminal:
+ * one line per command, in order, that ends with its status.
+ *
+ *   Tap on "Continue"... COMPLETED
+ *   Assert that "1 task" is visible... FAILED
+ *
+ *   Assertion is false: "1 task" is visible
+ *
+ * Seen with Maestro 2.12.1 on an Android emulator.
+ */
+export function failedCommandFromOutput(output: string, commands: readonly FlowCommand[]): { command: FlowCommand; message?: string } | undefined {
+  const lines = output.split("\n").map((line) => line.trimEnd());
+  let index = -1;
+  for (const [at, line] of lines.entries()) {
+    const status = /\.\.\. ([A-Z]+)$/.exec(line)?.[1];
+    if (status === undefined) continue;
+    index += 1;
+    if (status !== "FAILED") continue;
+    const command = commands[index];
+    if (!command) return undefined;
+    const message = lines.slice(at + 1).find((next) => next.trim() !== "")?.trim();
+    return message === undefined ? { command } : { command, message };
+  }
+  return undefined;
+}
+
 function toDivergence(failed: { command: FlowCommand; message?: string }): Divergence {
   const message = failed.message === undefined ? {} : { message: failed.message };
   const { stepId, oracleId } = failed.command;
@@ -288,8 +315,13 @@ export function maestroTarget(options: MaestroTargetOptions = {}): Target<Mobile
         const durationMs = performance.now() - started;
         if (run.code === 0) return { verdict: "pass", divergences: [], durationMs };
 
-        // Which command failed is read from the record Maestro keeps, not from what it prints.
+        // Which command failed is read from the record Maestro keeps, and if it has none, from what it prints.
         const commands = flowCommands(artifact);
+        const report = (failed: { command: FlowCommand; message?: string }): ReplayResult => {
+          const divergence = toDivergence(failed);
+          const message = divergence.message === undefined ? {} : { message: withoutValues(divergence.message, params) };
+          return { verdict: "fail", divergences: [{ ...divergence, ...message }], durationMs };
+        };
         const names = (await readdir(debug).catch(() => [])).filter((name) => /^commands-.*\.json$/.test(name)).sort();
         for (const name of names) {
           let recorded: unknown;
@@ -299,13 +331,11 @@ export function maestroTarget(options: MaestroTargetOptions = {}): Target<Mobile
             continue;
           }
           const failed = failedCommand(recorded, commands);
-          if (failed) {
-            const divergence = toDivergence(failed);
-            const message = divergence.message === undefined ? {} : { message: withoutValues(divergence.message, params) };
-            return { verdict: "fail", divergences: [{ ...divergence, ...message }], durationMs };
-          }
+          if (failed) return report(failed);
         }
-        throw new Error(`The flow failed, and Maestro's record does not say on which command. Its output:\n${withoutValues(run.output, params)}`);
+        const printed = failedCommandFromOutput(run.output, commands);
+        if (printed) return report(printed);
+        throw new Error(`The flow failed, and Maestro does not say on which command. Its output:\n${withoutValues(run.output, params)}`);
       } finally {
         // For someone who debugs a flow: keep what Maestro wrote (its record, its screenshots).
         const keep = process.env.ECR_MAESTRO_DEBUG;

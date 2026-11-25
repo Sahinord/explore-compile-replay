@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { checkSourceMap, outcomeOf, parseTrace } from "../../core/src/index.ts";
-import { compileToMaestro, createMaestroAdapter, failedCommand, flowCommands, maestroTarget, type MobileAction, type MobileTrace } from "../src/adapter.ts";
+import { compileToMaestro, createMaestroAdapter, failedCommand, failedCommandFromOutput, flowCommands, maestroTarget, type MobileAction, type MobileTrace } from "../src/adapter.ts";
 
 const examples = join(import.meta.dirname, "..", "examples");
 const adapter = createMaestroAdapter();
@@ -243,4 +243,31 @@ test("failedCommand gives nothing, rather than a guess, when the record has anot
   assert.equal(failedCommand([{ command: { tapOnElement: {} }, metadata: { status: "COMPLETED" } }], commands), undefined);
   const tooMany = Array.from({ length: commands.length + 1 }, () => ({ command: { tapOnElement: {} }, metadata: { status: "FAILED" } }));
   assert.equal(failedCommand(tooMany, commands), undefined);
+});
+
+test("failedCommandFromOutput reads what Maestro 2.12.1 prints on an emulator", () => {
+  const trace = deviceTrace("tiny-todo-one-tasks");
+  const commands = flowCommands(compileToMaestro(trace));
+  // Copied from a run on an Android emulator, shortened in the middle.
+  const done = (count: number): string[] => Array.from({ length: count }, (_, index) => `Command ${index + 1}... COMPLETED`);
+  const failAt = commands.findIndex((command) => command.oracleId === "counter-singular");
+  const output = [
+    "Running on test",
+    " > Flow anna: Find the task about apples.",
+    'Launch app "com.example.tinytodo" with clear state... COMPLETED',
+    ...done(failAt - 1),
+    'Assert that "1 task" is visible... FAILED',
+    "",
+    'Assertion is false: "1 task" is visible',
+    "",
+    "Assertion '\"1 task\" is visible' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.",
+    "",
+    "==== Debug output (logs & screenshots) ====",
+  ].join("\n");
+  assert.deepEqual(failedCommandFromOutput(output, commands), {
+    command: { stepId: "search", oracleId: "counter-singular" },
+    message: 'Assertion is false: "1 task" is visible',
+  });
+  assert.equal(failedCommandFromOutput(done(3).join("\n"), commands), undefined);
+  assert.equal(failedCommandFromOutput([...done(commands.length), "One more... FAILED"].join("\n"), commands), undefined);
 });
