@@ -55,3 +55,34 @@ export const exampleExploration: RecordInput<TodoAction, TodoOracle> = {
     },
   ],
 };
+
+/**
+ * An exploration that finds a bug, on a system where a new item starts
+ * ticked (`test/systems/behaviour-change.ts`). The oracle `not-done-yet`
+ * says what should be true. It was false, so it is recorded as a bug: the
+ * compiled test is red until the bug is fixed.
+ */
+export const bugExploration: RecordInput<TodoAction, TodoOracle> = {
+  id: "anna-new-item-ticked",
+  persona: { ...exampleExploration.persona, goal: "Add her first item and find it waiting, not ticked." },
+  agent: "hand-written example",
+  now: () => new Date("2026-11-25T12:00:00.000Z"),
+  invariants: [{ id: "bread-kept", check: { kind: "has", title: "Bread" } }],
+  steps: [
+    {
+      id: "s1",
+      intent: "She adds bread and expects it to wait for her, not ticked.",
+      action: { kind: "add", title: "Bread" },
+      checkpoints: [
+        { id: "one-item", check: { kind: "count", equals: 1 } },
+        { id: "not-done-yet", check: { kind: "done", title: "Bread", equals: false }, observed: "failed" },
+      ],
+    },
+    {
+      id: "s2",
+      intent: "She adds milk all the same.",
+      action: { kind: "add", title: "Milk" },
+      checkpoints: [{ id: "two-items", check: { kind: "count", equals: 2 } }],
+    },
+  ],
+};

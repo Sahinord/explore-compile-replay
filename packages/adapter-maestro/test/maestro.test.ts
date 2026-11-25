@@ -130,3 +130,16 @@ test("evidence is carried by the trace and changes no command of the flow", () =
   const commandsOf = (content: string): string => content.slice(content.indexOf("appId:"));
   assert.equal(commandsOf(compileToMaestro(without).content), commandsOf(compileToMaestro(trace).content));
 });
+
+test("an oracle recorded as a bug is asserted like the others, under a comment", () => {
+  const trace = withSteps({ kind: "tapOn", target: { text: "Save" } });
+  const last = trace.steps.at(-1)!;
+  const flow = commands({
+    ...trace,
+    steps: [
+      ...trace.steps.slice(0, -1),
+      { ...last, checkpoints: [{ id: "saved", check: { kind: "visible", target: { text: "Saved" } }, observed: "failed" }] },
+    ],
+  });
+  assert.match(flow, /# Oracle saved\n# Known bug: [^\n]+\n- assertVisible:\n {4}text: "Saved"/);
+});

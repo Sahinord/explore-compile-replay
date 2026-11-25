@@ -47,10 +47,20 @@ The screen after a step is the `screen` of the next step. The screen after the l
 
 The vocabulary is also published as a JSON Schema, for tools that are not written in TypeScript: [`vocabulary.schema.json`](vocabulary.schema.json). The schema of a whole trace is [`spec/trace.schema.json`](../../spec/trace.schema.json).
 
+## A finding becomes a check
+
+When the agent reports a problem, write what should be true as a checkpoint of the step where it was seen, with `"observed": "failed"`:
+
+```json
+{ "id": "error-is-explained", "check": { "kind": "visible", "target": { "text": "Password too short" } }, "observed": "failed" }
+```
+
+The flow asserts it like any other oracle, with a comment above it. The flow is red until the app is fixed, which makes it a reproduction to attach to a bug report. The root [README](../../README.md#a-bug-is-a-test-too) gives the rules.
+
 ## Known limits
 
 - Maestro matches text as a regular expression. Literal texts are escaped. The value of a parameter is not: a value with `(` or `.` in it is read as a pattern.
 - A literal text cannot contain `${`.
 - Values are passed as `maestro test -e NAME=value`, so they are visible in the process list while the flow runs.
-- `replay` only tells a pass from a failure. Typed divergences (which step, which oracle) are not written yet for Maestro.
+- `replay` only tells a pass from a failure. Typed divergences (which step, which oracle) are not written yet for Maestro. So `ecr replay` cannot yet tell a recorded bug from a regression on a device.
 - A tap on a point is replayed as is. It breaks on another screen size.

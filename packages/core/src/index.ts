@@ -9,7 +9,7 @@
  */
 import { createHash } from "node:crypto";
 import type { Adapter, TypedOracle, TypedTrace } from "../../../spec/contract.ts";
-import { TRACE_SCHEMA, Trace, type CompiledArtifact, type Param, type Persona } from "../../../spec/schema.ts";
+import { TRACE_SCHEMA, Trace, type CompiledArtifact, type Param, type Persona, type ReplayResult } from "../../../spec/schema.ts";
 
 /** JSON with sorted object keys, so that equal values give equal bytes. */
 export function canonicalJson(value: unknown): string {
@@ -126,7 +126,8 @@ export interface RecordInput<A, O> {
  *
  * This is the recording half of "explore". Choosing the steps is the job
  * of an agent or a person. An oracle that fails while exploring is never
- * recorded: the exploration stops with an error.
+ * recorded as a guard: the exploration stops with an error. To record a
+ * bug, declare the oracle with `observed: "failed"`: it must then be false.
  */
 export async function record<State, A, O>(
   adapter: Adapter<State, A, O>,
@@ -140,6 +141,11 @@ export async function record<State, A, O>(
   for (const step of input.steps) adapter.actions.parse(step.action);
   for (const oracle of [...invariants, ...input.steps.flatMap((step) => step.checkpoints ?? [])]) {
     adapter.oracles.parse(oracle.check);
+  }
+  for (const oracle of invariants) {
+    if (oracle.observed === "failed") {
+      throw new ExplorationError(`Invariant ${oracle.id} is declared as a bug: put the oracle on the step where it fails`);
+    }
   }
 
   await driver.setup();
@@ -156,7 +162,10 @@ export async function record<State, A, O>(
 
       for (const oracle of [...(step.checkpoints ?? []), ...invariants]) {
         const verdict = await driver.verify(resolveParams(oracle.check, values));
-        if (!verdict.ok) {
+        if (oracle.observed === "failed") {
+          // A bug: the oracle says what should be true. It is recorded only if it is really false.
+          if (verdict.ok) throw new ExplorationError(`Oracle ${oracle.id} is declared as a bug, but it holds after step ${step.id}`);
+        } else if (!verdict.ok) {
           throw new ExplorationError(`Oracle ${oracle.id} failed after step ${step.id}: ${verdict.message}`);
         }
       }
@@ -228,4 +237,56 @@ export function parseTrace<State, A, O>(adapter: Adapter<State, A, O>, value: un
   });
   if (issues.length > 0) throw new TraceError(issues);
   return trace as unknown as TypedTrace<A, O>;
+}
+
+/** An oracle of a trace, with the step after which it is checked. */
+export interface PlacedOracle {
+  readonly oracleId: string;
+  readonly stepId: string;
+  readonly observed: "held" | "failed";
+}
+
+/** The part of a trace that says which oracle is checked when. A typed trace fits too. */
+export interface OraclePlan {
+  readonly steps: readonly {
+    readonly id: string;
+    readonly checkpoints: readonly { readonly id: string; readonly observed?: "held" | "failed" | undefined }[];
+  }[];
+  readonly invariants: readonly { readonly id: string }[];
+}
+
+/** Every oracle of a trace in the order a replay checks them: after each step, its checkpoints, then the invariants. */
+export function oraclesInOrder(trace: OraclePlan): PlacedOracle[] {
+  return trace.steps.flatMap((step) => [
+    ...step.checkpoints.map((oracle) => ({ oracleId: oracle.id, stepId: step.id, observed: oracle.observed ?? "held" })),
+    ...trace.invariants.map((oracle) => ({ oracleId: oracle.id, stepId: step.id, observed: "held" as const })),
+  ]);
+}
+
+/** The first bug a replay meets, if the trace records one. A replay cannot go past it while the bug is there. */
+export function firstBug(trace: OraclePlan): PlacedOracle | undefined {
+  return oraclesInOrder(trace).find((oracle) => oracle.observed === "failed");
+}
+
+/**
+ * How a replay compares with what the exploration observed.
+ * - `pass`: every oracle holds, and the trace records no bug.
+ * - `known_bug`: the replay stops on the first bug the trace records, and on nothing else. The bug is still there.
+ * - `fixed`: every oracle holds, including the ones recorded as bugs. They can become guards.
+ * - `fail`: anything else. A step diverged, or an oracle that held no longer holds.
+ */
+export type Outcome = "pass" | "known_bug" | "fixed" | "fail";
+
+export function outcomeOf(trace: OraclePlan, result: ReplayResult): Outcome {
+  const bug = firstBug(trace);
+  if (result.verdict === "pass") return bug ? "fixed" : "pass";
+  const [only, ...rest] = result.divergences;
+  const stoppedOnBug =
+    bug !== undefined &&
+    only !== undefined &&
+    rest.length === 0 &&
+    only.type === "oracle_failed" &&
+    only.oracleId === bug.oracleId &&
+    only.stepId === bug.stepId;
+  return stoppedOnBug ? "known_bug" : "fail";
 }

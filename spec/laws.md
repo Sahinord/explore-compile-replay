@@ -16,6 +16,8 @@ The same trace compiles to the same bytes. The same artifact, run against the sa
 
 The artifact runs the actions of the trace and checks its oracles, in the same order. It adds none and drops none.
 
+An oracle recorded as a bug (`observed: "failed"`) is checked like any other. On the system where it was recorded, the replay stops on that oracle and on nothing before it.
+
 **Check.** Replay the artifact against an instrumented system and compare the sequence it receives with the sequence in the trace.
 
 ## L3. Traceability

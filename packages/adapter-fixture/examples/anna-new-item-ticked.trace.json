@@ -1,0 +1,71 @@
+{
+  "schema": "ecr.trace/0",
+  "id": "anna-new-item-ticked",
+  "adapter": {
+    "id": "fixture-todo"
+  },
+  "persona": {
+    "id": "anna",
+    "profile": "Retired teacher, 68, low patience with jargon.",
+    "goal": "Add her first item and find it waiting, not ticked."
+  },
+  "params": [],
+  "invariants": [
+    {
+      "id": "bread-kept",
+      "check": {
+        "kind": "has",
+        "title": "Bread"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "intent": "She adds bread and expects it to wait for her, not ticked.",
+      "action": {
+        "kind": "add",
+        "title": "Bread"
+      },
+      "checkpoints": [
+        {
+          "id": "one-item",
+          "check": {
+            "kind": "count",
+            "equals": 1
+          }
+        },
+        {
+          "id": "not-done-yet",
+          "check": {
+            "kind": "done",
+            "title": "Bread",
+            "equals": false
+          },
+          "observed": "failed"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "intent": "She adds milk all the same.",
+      "action": {
+        "kind": "add",
+        "title": "Milk"
+      },
+      "checkpoints": [
+        {
+          "id": "two-items",
+          "check": {
+            "kind": "count",
+            "equals": 2
+          }
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "exploredAt": "2026-11-25T12:00:00.000Z",
+    "agent": "hand-written example"
+  }
+}

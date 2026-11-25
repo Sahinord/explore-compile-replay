@@ -18,7 +18,7 @@ import { parseArgs } from "node:util";
 import type { Adapter, Target, TypedTrace } from "../../../spec/contract.ts";
 import { Trace, type Divergence } from "../../../spec/schema.ts";
 import { checkAdapter, conforms, formatReport } from "../../conformance/src/index.ts";
-import { TraceError, parseTrace } from "../../core/src/index.ts";
+import { TraceError, oraclesInOrder, outcomeOf, parseTrace } from "../../core/src/index.ts";
 
 export interface Io {
   readonly out: (line: string) => void;
@@ -41,6 +41,8 @@ export const USAGE = `Usage:
       With --check, write nothing and fail if a file is missing or out of date.
   ecr replay <trace...> --adapter <module> [--target <id>]
       Compile each trace and run the result. No model is called.
+      pass: every oracle holds. bug: the replay stops on a bug the trace records, and on nothing else.
+      fixed: an oracle recorded as a bug now holds. FAIL: anything else, and the only result that fails the command.
   ecr conformance <trace...> --adapter <module>
       Check the adapter against the seven laws, with these traces.
 
@@ -180,8 +182,21 @@ async function replay(io: Io, paths: readonly string[], options: { adapter?: str
   for (const { trace, params } of runs) {
     const result = await target.replay(target.compile(trace), { params });
     const time = `${Math.round(result.durationMs)} ms`;
-    if (result.verdict === "pass") {
+    const outcome = outcomeOf(trace, result);
+    if (outcome === "pass") {
       io.out(`pass  ${trace.id} (${target.id}, ${time})`);
+      continue;
+    }
+    if (outcome === "known_bug") {
+      io.out(`bug   ${trace.id} (${target.id}, ${time})`);
+      for (const divergence of result.divergences) io.out(`      ${describe(divergence)}`);
+      io.out("      This oracle was recorded as a bug, and the bug is still there. The steps after it did not run.");
+      continue;
+    }
+    if (outcome === "fixed") {
+      const bugs = oraclesInOrder(trace).filter((oracle) => oracle.observed === "failed").map((oracle) => oracle.oracleId);
+      io.out(`fixed ${trace.id} (${target.id}, ${time})`);
+      io.out(`      Recorded as a bug, and it holds now: ${bugs.join(", ")}. Remove "observed": "failed" from the trace to keep it as a guard.`);
       continue;
     }
     failed = true;

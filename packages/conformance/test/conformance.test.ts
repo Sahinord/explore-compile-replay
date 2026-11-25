@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { Adapter } from "../../../spec/contract.ts";
 import type { Todo } from "../../adapter-fixture/src/todo.ts";
 import { createFixtureAdapter, type TodoAction, type TodoOracle, type TodoTrace } from "../../adapter-fixture/src/adapter.ts";
-import { exampleExploration, exampleValues } from "../../adapter-fixture/src/example.ts";
+import { bugExploration, exampleExploration, exampleValues } from "../../adapter-fixture/src/example.ts";
 import { record } from "../../core/src/index.ts";
 import { checkAdapter, conforms, formatReport, type LawId, type LawResult } from "../src/index.ts";
 
@@ -53,6 +53,22 @@ test("L2 fails when a recorded trace does not replay green", async () => {
   const drifted = createFixtureAdapter({ system: new URL("../../adapter-fixture/test/systems/behaviour-change.ts", import.meta.url).href });
   const results = await checkAdapter(drifted, [{ trace: await exampleTrace(), params: exampleValues }], { replays: 1 });
   assert.equal(status(results, "L2"), "fail");
+});
+
+test("L2 holds for a trace that records a bug, as long as the replay stops on that bug", async () => {
+  const system = new URL("../../adapter-fixture/test/systems/behaviour-change.ts", import.meta.url).href;
+  const { TodoApp } = (await import(system)) as typeof import("../../adapter-fixture/test/systems/behaviour-change.ts");
+  const buggy = createFixtureAdapter({ system, create: () => new TodoApp() });
+  const trace = await record(buggy, bugExploration);
+
+  const same = await checkAdapter(buggy, [{ trace }], { replays: 2 });
+  assert.equal(status(same, "L1"), "pass");
+  assert.equal(status(same, "L2"), "partial");
+  assert.equal(conforms(same), true, formatReport(same));
+
+  // On a system without the bug, the replay is green: it is not what was recorded.
+  const other = await checkAdapter(createFixtureAdapter(), [{ trace }], { replays: 1 });
+  assert.equal(status(other, "L2"), "fail");
 });
 
 test("L3 fails when two steps share a range", async () => {

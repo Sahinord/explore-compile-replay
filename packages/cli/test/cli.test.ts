@@ -10,6 +10,8 @@ const root = resolve(import.meta.dirname, "..", "..", "..");
 const TRACE = "packages/adapter-fixture/examples/anna-first-item.trace.json";
 const ADAPTER = "packages/adapter-fixture/src/index.ts";
 const DRIFTED = "packages/adapter-fixture/test/systems/drifted-adapter.ts";
+const BUG_TRACE = "packages/adapter-fixture/examples/anna-new-item-ticked.trace.json";
+const BUGGY = "packages/adapter-fixture/test/systems/buggy-adapter.ts";
 const OTHER_VOCABULARY = "spec/examples/add-first-item.trace.json";
 const VALUES = { ECR_PARAM_ITEM_TITLE: exampleValues.ITEM_TITLE, ECR_PARAM_PRIVATE_NOTE: exampleValues.PRIVATE_NOTE };
 
@@ -109,6 +111,19 @@ test("replay fails on a changed behaviour and names the step and the oracle, nev
   assert.match(result.err, /oracle_failed  step s1  oracle not-done-yet/);
   assert.match(result.err, /a person decides/);
   assert.equal(result.err.includes(exampleValues.PRIVATE_NOTE), false);
+});
+
+test("replay tells a bug the trace records from a regression, and says when the bug is gone", async () => {
+  const still = await ecr(["replay", BUG_TRACE, "--adapter", BUGGY]);
+  assert.equal(still.code, 0);
+  assert.match(still.out, /^bug   anna-new-item-ticked/);
+  assert.match(still.out, /oracle_failed  step s1  oracle not-done-yet/);
+  assert.equal(still.err, "");
+
+  const fixed = await ecr(["replay", BUG_TRACE, "--adapter", ADAPTER]);
+  assert.equal(fixed.code, 0);
+  assert.match(fixed.out, /^fixed anna-new-item-ticked/);
+  assert.match(fixed.out, /not-done-yet/);
 });
 
 test("conformance prints the report and fails when a law fails", async () => {

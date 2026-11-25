@@ -49,8 +49,22 @@ export type Persona = z.infer<typeof Persona>;
 export const Oracle = z.object({
   id: z.string().min(1),
   check: VocabularyEntry,
+  /**
+   * What was observed while exploring. Absent means `held`.
+   * `held`: the check was true. It guards a behaviour that works.
+   * `failed`: the check states what should be true and was not. It is a bug
+   * written as a test: its replay fails until the bug is fixed. Only a
+   * checkpoint can be one: a bug belongs to the step where it was seen.
+   */
+  observed: z.enum(["held", "failed"]).optional(),
 });
 export type Oracle = z.infer<typeof Oracle>;
+
+/** An oracle that must hold after every step. It guards, so it cannot be recorded as a bug. */
+const Invariant = Oracle.refine((oracle) => oracle.observed !== "failed", {
+  path: ["observed"],
+  message: "An invariant cannot be recorded as a bug: put the oracle on the step where it failed",
+});
 
 export const Step = z.object({
   /** Stable id. The source map of an artifact points back to it (law L3). */
@@ -76,7 +90,7 @@ export const Trace = z.object({
   persona: Persona,
   params: z.array(Param).default([]),
   /** Oracles that must hold after every step. */
-  invariants: z.array(Oracle).default([]),
+  invariants: z.array(Invariant).default([]),
   steps: z.array(Step).min(1),
   /**
    * What was seen that belongs to no single step, such as the last screen.

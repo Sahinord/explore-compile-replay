@@ -85,6 +85,7 @@ An adapter is correct when it obeys seven laws. A conformance kit checks them, s
 - **No built-in LLM loop.** Exploring is done by the agent you already use, through an MCP server and skills. ECR records, validates and compiles.
 - **The core will never import an LLM SDK.** A replay cannot call a model by accident.
 - **Oracles are data.** Every target can emit them, and a repair can prove it removed none.
+- **A bug is a test too.** When the agent finds something wrong, the check that should hold is recorded as failed. It compiles to a test that is red until the bug is fixed.
 
 ## What exists today
 
@@ -93,7 +94,7 @@ An adapter is correct when it obeys seven laws. A conformance kit checks them, s
 | Trace schema, [`spec/schema.ts`](spec/schema.ts) | Draft. Type-checked, with a validated example and a generated [JSON Schema](spec/trace.schema.json). A step may carry evidence (a screenshot, where the finger landed) for tools that show a trace |
 | Adapter contract, [`spec/contract.ts`](spec/contract.ts) | Draft. Type-checked |
 | Seven laws, [`spec/laws.md`](spec/laws.md) | Draft |
-| Core, [`packages/core`](packages/core/src/index.ts) | First slice: record a trace through a driver, validate it, hash it, resolve parameters, check a source map |
+| Core, [`packages/core`](packages/core/src/index.ts) | First slice: record a trace through a driver, validate it, hash it, resolve parameters, check a source map, tell a recorded bug from a regression |
 | `ecr` command, [`packages/cli`](packages/cli/src/run.ts) | Runs from this repository: `validate`, `compile`, `replay`, `conformance`. Not on npm yet |
 | MCP server and skills, for an agent to explore | Not started |
 | Reference adapter, [`packages/adapter-fixture`](packages/adapter-fixture/src/adapter.ts) | Runs. A to-do list in memory, compiled to a plain `node:test` file |
@@ -118,7 +119,7 @@ The report for the reference adapter:
 
 ```text
 L1  Determinism   pass     same bytes on two compilations, same verdict on 3 replays (1 trace, 1 target)
-L2  Fidelity      partial  recorded traces replay green; the order of actions on an instrumented system is not checked yet
+L2  Fidelity      partial  recorded traces replay as observed; the order of actions on an instrumented system is not checked yet
 L3  Traceability  pass     every step has one range, inside the file, with no overlap (1 trace, 1 target)
 L4  No model      partial  no artifact imports a known model SDK; replaying with the network closed is not checked yet
 L5  State         pass     state identical after restore (1 trace)
@@ -163,6 +164,36 @@ FAIL  anna-first-item (node-test, 95 ms)
       oracle_failed  step s1  oracle not-done-yet: Expected values to be strictly equal: true !== false
       A failed oracle is never repaired: it is a regression or an intended change, and a person decides.
 ```
+
+### A bug is a test too
+
+An agent that explores finds bugs. A report describes them. A trace can hold them as checks.
+
+An oracle says what should be true. When it was false during the exploration, it is recorded with `"observed": "failed"`:
+
+```json
+{ "id": "not-done-yet", "check": { "kind": "done", "title": "Bread", "equals": false }, "observed": "failed" }
+```
+
+The compiled file checks it like any other oracle, so the test is red until the bug is fixed. It is a reproduction that anyone can run: [the trace](packages/adapter-fixture/examples/anna-new-item-ticked.trace.json), [the test](packages/adapter-fixture/examples/anna-new-item-ticked.test.mjs).
+
+`ecr replay` knows what the trace recorded, and gives one of four results. Only `FAIL` fails the command.
+
+| Result | Meaning |
+|---|---|
+| `pass` | Every oracle holds. The trace records no bug |
+| `bug` | The replay stops on the bug the trace records, and on nothing else. The bug is still there |
+| `fixed` | The oracle that was recorded as a bug holds now. Remove `"observed": "failed"` and it becomes a guard |
+| `FAIL` | Anything else: a step diverged, or an oracle that held no longer holds |
+
+```text
+$ pnpm ecr replay packages/adapter-fixture/examples/anna-new-item-ticked.trace.json --adapter packages/adapter-fixture/test/systems/buggy-adapter.ts
+bug   anna-new-item-ticked (node-test, 90 ms)
+      oracle_failed  step s1  oracle not-done-yet: Expected values to be strictly equal: true !== false
+      This oracle was recorded as a bug, and the bug is still there. The steps after it did not run.
+```
+
+Two limits. A replay stops on the first bug, so what comes after it in the trace is not checked until the bug is fixed. And only a checkpoint of a step can be a bug, never an invariant.
 
 ## Roadmap
 

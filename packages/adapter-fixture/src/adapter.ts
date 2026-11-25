@@ -133,6 +133,9 @@ function oracleLine(oracle: TodoOracle): string {
   return `assert.equal(app.state().find((item) => item.title === ${js(oracle.title)})?.done, ${oracle.equals});`;
 }
 
+/** Written above an oracle that was recorded as a bug. */
+const BUG_COMMENT = "// Known bug: this check was false when the trace was recorded. It fails until the bug is fixed.";
+
 /** One line, so that a comment cannot break the file or its source map. */
 function oneLine(text: string): string {
   return text.replace(/\s+/g, " ").trim();
@@ -173,6 +176,7 @@ export function compileToNodeTest(trace: TodoTrace): CompiledArtifact {
 
   const emitOracle = (stepId: string, oracle: TypedOracle<TodoOracle>): void => {
     lines.push(`    at = ${JSON.stringify({ kind: "oracle", stepId, oracleId: oracle.id })};`);
+    if (oracle.observed === "failed") lines.push(`    ${BUG_COMMENT}`);
     lines.push(`    ${oracleLine(oracle.check)}`);
   };
 

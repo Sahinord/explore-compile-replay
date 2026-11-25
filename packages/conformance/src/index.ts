@@ -10,7 +10,7 @@
  */
 import type { Adapter, Target, TypedTrace } from "../../../spec/contract.ts";
 import type { ReplayResult } from "../../../spec/schema.ts";
-import { canonicalJson, checkSourceMap, hashTrace, resolveParams } from "../../core/src/index.ts";
+import { canonicalJson, checkSourceMap, firstBug, hashTrace, outcomeOf, resolveParams } from "../../core/src/index.ts";
 
 export type LawId = "L1" | "L2" | "L3" | "L4" | "L5" | "L6" | "L7";
 export type LawStatus = "pass" | "fail" | "partial" | "skipped";
@@ -22,7 +22,10 @@ export interface LawResult {
   readonly detail: string;
 }
 
-/** A trace recorded on the system the targets replay against, so its replay must pass. */
+/**
+ * A trace recorded on the system the targets replay against. Its replay must
+ * give what was observed: green, or stopped on the first bug the trace records.
+ */
 export interface ConformanceCase<A, O> {
   readonly trace: TypedTrace<A, O>;
   /** Values of the parameters the trace declares. */
@@ -107,7 +110,7 @@ export async function checkAdapter<State, A, O>(
         determinism.push(`${name}: traceHash is not the hash of the trace`);
       }
 
-      // L1, replay: the same artifact gives the same verdict. L2: a recorded trace replays green.
+      // L1, replay: the same artifact gives the same verdict. L2: a recorded trace replays as it was observed.
       const runs: ReplayResult[] = [];
       for (let run = 0; run < replays; run += 1) {
         runs.push(await target.replay(artifact, testCase.params ? { params: testCase.params } : {}));
@@ -116,8 +119,13 @@ export async function checkAdapter<State, A, O>(
       if (first && runs.some((run) => outcome(run) !== outcome(first))) {
         determinism.push(`${name}: ${replays} replays gave different verdicts`);
       }
-      if (first && first.verdict !== "pass") {
-        fidelity.push(`${name}: the replay of a recorded trace failed (${outcome(first)})`);
+      const expected = firstBug(testCase.trace) ? "known_bug" : "pass";
+      if (first && outcomeOf(testCase.trace, first) !== expected) {
+        fidelity.push(
+          expected === "pass"
+            ? `${name}: the replay of a recorded trace failed (${outcome(first)})`
+            : `${name}: the replay did not stop on the bug the trace records (${outcome(first)})`,
+        );
       }
 
       // L3: each step maps to one distinct range.
@@ -148,7 +156,7 @@ export async function checkAdapter<State, A, O>(
       : result("L1", "pass", `same bytes on two compilations, same verdict on ${replays} replays (${count})`),
     fidelity.length > 0
       ? result("L2", "fail", fidelity.join("; "))
-      : result("L2", "partial", "recorded traces replay green; the order of actions on an instrumented system is not checked yet"),
+      : result("L2", "partial", "recorded traces replay as observed; the order of actions on an instrumented system is not checked yet"),
     traceability.length > 0
       ? result("L3", "fail", traceability.join("; "))
       : result("L3", "pass", `every step has one range, inside the file, with no overlap (${count})`),

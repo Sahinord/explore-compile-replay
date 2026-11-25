@@ -168,6 +168,9 @@ export function compileToMaestro(trace: MobileTrace): CompiledArtifact {
     lines.push(...actionLines(step.action, where));
     for (const oracle of [...step.checkpoints, ...trace.invariants]) {
       lines.push(`# Oracle ${oneLine(oracle.id)}`);
+      if (oracle.observed === "failed") {
+        lines.push("# Known bug: this check was false when the trace was recorded. It fails until the bug is fixed.");
+      }
       lines.push(...oracleLines(oracle.check, `oracle ${oracle.id}`));
     }
     sourceMap.push({ stepId: step.id, startLine, endLine: lines.length });
