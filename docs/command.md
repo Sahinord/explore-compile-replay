@@ -1,5 +1,7 @@
 # The `ecr` command
 
+English · [简体中文](../i18n/zh-CN/docs/command.md) · [日本語](../i18n/ja/docs/command.md) · [Español](../i18n/es/docs/command.md) · [Português](../i18n/pt-BR/docs/command.md) · [Tiếng Việt](../i18n/vi/docs/command.md) · [Türkçe](../i18n/tr/docs/command.md)
+
 Everything here runs from a clone of this repository, with Node 22.18 or later and pnpm. Compiling and replaying call no model.
 
 ## Check your clone

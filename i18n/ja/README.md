@@ -11,7 +11,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-1f883d)](../../LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/pierridotite/explore-compile-replay?color=1f883d)](https://github.com/pierridotite/explore-compile-replay/commits/main)
 
-**[クイックスタート](#quick-start)** · **[ドキュメント](../../docs/command.md)** · **[論文と仕様](#paper-and-specification)** · **[コントリビュート](../../CONTRIBUTING.md)** · **[変更履歴](../../CHANGELOG.md)**
+**[クイックスタート](#quick-start)** · **[ドキュメント](docs/command.md)** · **[論文と仕様](#paper-and-specification)** · **[コントリビュート](../../CONTRIBUTING.md)** · **[変更履歴](../../CHANGELOG.md)**
 
 <sub>[English](../../README.md) · [简体中文](../zh-CN/README.md) · 日本語 · [Español](../es/README.md) · [Português](../pt-BR/README.md) · [Tiếng Việt](../vi/README.md) · [Türkçe](../tr/README.md)</sub>
 
@@ -44,7 +44,7 @@ pnpm ecr replay packages/adapter-fixture/examples/anna-first-item.trace.json \
 # pass  anna-first-item (node-test, 80 ms)
 ```
 
-これはメモリ上の ToDo リスト（リファレンスシステム）に対して、記録済みのトレースを再生します。すべてのコマンド：[docs/command.md](../../docs/command.md)。
+これはメモリ上の ToDo リスト（リファレンスシステム）に対して、記録済みのトレースを再生します。すべてのコマンド：[docs/command.md](docs/command.md)。
 
 ## 仕組み
 
@@ -99,7 +99,7 @@ pnpm ecr replay packages/adapter-fixture/examples/anna-first-item.trace.json \
 ECR は一つのツールではなく、誰でも実装できる標準を目指しています。
 
 - **仕様。** [トレース形式](../../spec/schema.ts)（[JSON Schema](../../spec/trace.schema.json) としても公開）、[アダプター契約](../../spec/contract.ts)、そして [7 つの法則](../../spec/laws.md)：決定性、忠実性、追跡可能性、モデルなし、状態、安全な修復、秘密なし。いずれもドラフトで、まだ変わる可能性があります。
-- **適合性キット。** アダプターを法則ごとに検証します。これに通るアダプターは、誰が書いたものでも適合しています。書き方：[docs/adapter.md](../../docs/adapter.md)。
+- **適合性キット。** アダプターを法則ごとに検証します。これに通るアダプターは、誰が書いたものでも適合しています。書き方：[docs/adapter.md](docs/adapter.md)。
 - **論文。** このパターン、契約、そして実際のアプリ [LocalSend](https://github.com/localsend/localsend) での評価を記述します。[評価プロトコル](../../paper/protocol.md)は最初の本計測より前に公開されました。執筆中で、プレプリントは最初のリリースとともに Zenodo で公開します。
 - **引用。** [CITATION.cff](../../CITATION.cff)、またはリポジトリページの "Cite this repository"。DOI は最初のリリースとともに付与します。
 
@@ -126,7 +126,7 @@ ECR は一つのツールではなく、誰でも実装できる標準を目指�
 - **進行中：** 実際のアプリ LocalSend と、プレプリントと DOI を伴う最初のリリース。
 - **未着手：** iOS、デバイス上での修復、npm パッケージ。
 
-部分ごとの状況：[docs/status.md](../../docs/status.md)。
+部分ごとの状況：[docs/status.md](docs/status.md)。
 
 ## 生まれた経緯
 

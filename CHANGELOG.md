@@ -13,4 +13,4 @@ Everything below is a draft: the trace format, the contract and the laws can sti
 - **Mobile adapter**: a mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows, replayed with `maestro test` on an Android emulator. A press can say where in the element it lands, and a swipe can keep its two ends. See [packages/adapter-maestro](packages/adapter-maestro/README.md).
 - **Repeated replays**: `ecr replay --times <n> --report <file>` replays each trace several times and keeps every result as JSON, with no message of the system and no parameter value.
 - **Evaluation protocol**, written before any measured run: [paper/protocol.md](paper/protocol.md).
-- **The README in six more languages**: Chinese, Japanese, Spanish, Portuguese, Vietnamese and Turkish, in [i18n/](i18n/). `pnpm check` checks that every relative link of the Markdown pages points to a file and an anchor that exist.
+- **The README and the docs pages in six more languages**: Chinese, Japanese, Spanish, Portuguese, Vietnamese and Turkish, in [i18n/](i18n/). `pnpm check` checks that every relative link of the Markdown pages points to a file and an anchor that exist.

@@ -11,7 +11,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-1f883d)](../../LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/pierridotite/explore-compile-replay?color=1f883d)](https://github.com/pierridotite/explore-compile-replay/commits/main)
 
-**[Hızlı başlangıç](#quick-start)** · **[Belgeler](../../docs/command.md)** · **[Makale ve şartname](#paper-and-specification)** · **[Katkıda bulunma](../../CONTRIBUTING.md)** · **[Değişiklikler](../../CHANGELOG.md)**
+**[Hızlı başlangıç](#quick-start)** · **[Belgeler](docs/command.md)** · **[Makale ve şartname](#paper-and-specification)** · **[Katkıda bulunma](../../CONTRIBUTING.md)** · **[Değişiklikler](../../CHANGELOG.md)**
 
 <sub>[English](../../README.md) · [简体中文](../zh-CN/README.md) · [日本語](../ja/README.md) · [Español](../es/README.md) · [Português](../pt-BR/README.md) · [Tiếng Việt](../vi/README.md) · Türkçe</sub>
 
@@ -44,7 +44,7 @@ pnpm ecr replay packages/adapter-fixture/examples/anna-first-item.trace.json \
 # pass  anna-first-item (node-test, 80 ms)
 ```
 
-Bu komut, kaydedilmiş bir izi bellekteki bir yapılacaklar listesine, yani referans sisteme karşı yeniden oynatır. Tüm komutlar: [docs/command.md](../../docs/command.md).
+Bu komut, kaydedilmiş bir izi bellekteki bir yapılacaklar listesine, yani referans sisteme karşı yeniden oynatır. Tüm komutlar: [docs/command.md](docs/command.md).
 
 ## Nasıl çalışır
 
@@ -99,7 +99,7 @@ Dokunuş, düğmenin ekrandaki yeriyle değil adıyla saklanır. Yazılan metin 
 ECR tek bir araç değil, herkesin uygulayabileceği bir standart olmayı hedefliyor.
 
 - **Şartname.** [İz biçimi](../../spec/schema.ts) (ayrıca bir [JSON Schema](../../spec/trace.schema.json) olarak yayımlandı), [adaptör sözleşmesi](../../spec/contract.ts) ve [yedi yasa](../../spec/laws.md): belirlenimcilik, sadakat, izlenebilirlik, model yok, durum, güvenli onarım, sır yok. Hâlâ değişebilecek taslaklar.
-- **Uygunluk kiti.** Bir adaptörü yasa yasa kontrol eder. Onu geçen bir adaptör, kim yazmış olursa olsun uygundur. Nasıl yazılır: [docs/adapter.md](../../docs/adapter.md).
+- **Uygunluk kiti.** Bir adaptörü yasa yasa kontrol eder. Onu geçen bir adaptör, kim yazmış olursa olsun uygundur. Nasıl yazılır: [docs/adapter.md](docs/adapter.md).
 - **Makale.** Bu kalıbı, sözleşmeyi ve gerçek bir uygulama olan [LocalSend](https://github.com/localsend/localsend) üzerindeki bir değerlendirmeyi anlatır. [Değerlendirme protokolü](../../paper/protocol.md) ilk ölçümden önce yayımlandı. Yazılıyor: ön baskı ilk sürümle birlikte Zenodo'ya gelecek.
 - **Atıf.** [CITATION.cff](../../CITATION.cff) ya da deponun sayfasındaki "Cite this repository". İlk sürümle birlikte bir DOI gelecek.
 
@@ -126,7 +126,7 @@ ECR tek bir araç değil, herkesin uygulayabileceği bir standart olmayı hedefl
 - **Sürüyor:** gerçek bir uygulama olarak LocalSend ve ön baskı ile DOI'yi içeren ilk sürüm.
 - **Henüz yok:** iOS, bir cihazda onarım, npm'de bir paket.
 
-Parça parça: [docs/status.md](../../docs/status.md).
+Parça parça: [docs/status.md](docs/status.md).
 
 ## Nereden geliyor
 

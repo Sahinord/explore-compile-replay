@@ -1,5 +1,7 @@
 # Write an adapter
 
+English · [简体中文](../i18n/zh-CN/docs/adapter.md) · [日本語](../i18n/ja/docs/adapter.md) · [Español](../i18n/es/docs/adapter.md) · [Português](../i18n/pt-BR/docs/adapter.md) · [Tiếng Việt](../i18n/vi/docs/adapter.md) · [Türkçe](../i18n/tr/docs/adapter.md)
+
 An adapter connects Explore-Compile-Replay to one kind of system. This page has the shape of an adapter and the choices behind it. The exact types are in [`spec/contract.ts`](../spec/contract.ts), the data shapes in [`spec/schema.ts`](../spec/schema.ts) and the seven laws in [`spec/laws.md`](../spec/laws.md).
 
 ## The contract

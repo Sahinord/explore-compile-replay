@@ -11,7 +11,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-1f883d)](../../LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/pierridotite/explore-compile-replay?color=1f883d)](https://github.com/pierridotite/explore-compile-replay/commits/main)
 
-**[Início rápido](#quick-start)** · **[Documentação](../../docs/command.md)** · **[Artigo e especificação](#paper-and-specification)** · **[Contribuir](../../CONTRIBUTING.md)** · **[Mudanças](../../CHANGELOG.md)**
+**[Início rápido](#quick-start)** · **[Documentação](docs/command.md)** · **[Artigo e especificação](#paper-and-specification)** · **[Contribuir](../../CONTRIBUTING.md)** · **[Mudanças](../../CHANGELOG.md)**
 
 <sub>[English](../../README.md) · [简体中文](../zh-CN/README.md) · [日本語](../ja/README.md) · [Español](../es/README.md) · Português · [Tiếng Việt](../vi/README.md) · [Türkçe](../tr/README.md)</sub>
 
@@ -44,7 +44,7 @@ pnpm ecr replay packages/adapter-fixture/examples/anna-first-item.trace.json \
 # pass  anna-first-item (node-test, 80 ms)
 ```
 
-Isso reexecuta um trace gravado contra uma lista de tarefas em memória, o sistema de referência. Todos os comandos: [docs/command.md](../../docs/command.md).
+Isso reexecuta um trace gravado contra uma lista de tarefas em memória, o sistema de referência. Todos os comandos: [docs/command.md](docs/command.md).
 
 ## Como funciona
 
@@ -99,7 +99,7 @@ O toque é guardado pelo nome do botão, não pela posição dele na tela. O tex
 O ECR quer ser um padrão que qualquer pessoa possa implementar, não uma ferramenta.
 
 - **Especificação.** O [formato do trace](../../spec/schema.ts), publicado também como [JSON Schema](../../spec/trace.schema.json), o [contrato do adaptador](../../spec/contract.ts) e [sete leis](../../spec/laws.md): determinismo, fidelidade, rastreabilidade, sem modelo, estado, reparo seguro, sem segredo. São rascunhos que ainda podem mudar.
-- **Kit de conformidade.** Verifica um adaptador lei por lei. Um adaptador que passa nele está conforme, não importa quem o escreveu. Como escrever um: [docs/adapter.md](../../docs/adapter.md).
+- **Kit de conformidade.** Verifica um adaptador lei por lei. Um adaptador que passa nele está conforme, não importa quem o escreveu. Como escrever um: [docs/adapter.md](docs/adapter.md).
 - **Artigo.** O padrão, o contrato e uma avaliação em um app real, o [LocalSend](https://github.com/localsend/localsend). O [protocolo](../../paper/protocol.md) foi publicado antes da primeira medição. Em redação: o preprint sai no Zenodo com a primeira versão.
 - **Citação.** [CITATION.cff](../../CITATION.cff), ou "Cite this repository" na página do repositório. Um DOI vem com a primeira versão.
 
@@ -126,7 +126,7 @@ O ECR quer ser um padrão que qualquer pessoa possa implementar, não uma ferram
 - **Em andamento:** um app real, o LocalSend, e a primeira versão, com o preprint e um DOI.
 - **Ainda não:** iOS, um reparo em um dispositivo, um pacote no npm.
 
-Parte por parte: [docs/status.md](../../docs/status.md).
+Parte por parte: [docs/status.md](docs/status.md).
 
 ## De onde vem
 

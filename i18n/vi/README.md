@@ -11,7 +11,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-1f883d)](../../LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/pierridotite/explore-compile-replay?color=1f883d)](https://github.com/pierridotite/explore-compile-replay/commits/main)
 
-**[Bắt đầu nhanh](#quick-start)** · **[Tài liệu](../../docs/command.md)** · **[Bài báo và đặc tả](#paper-and-specification)** · **[Đóng góp](../../CONTRIBUTING.md)** · **[Nhật ký thay đổi](../../CHANGELOG.md)**
+**[Bắt đầu nhanh](#quick-start)** · **[Tài liệu](docs/command.md)** · **[Bài báo và đặc tả](#paper-and-specification)** · **[Đóng góp](../../CONTRIBUTING.md)** · **[Nhật ký thay đổi](../../CHANGELOG.md)**
 
 <sub>[English](../../README.md) · [简体中文](../zh-CN/README.md) · [日本語](../ja/README.md) · [Español](../es/README.md) · [Português](../pt-BR/README.md) · Tiếng Việt · [Türkçe](../tr/README.md)</sub>
 
@@ -44,7 +44,7 @@ pnpm ecr replay packages/adapter-fixture/examples/anna-first-item.trace.json \
 # pass  anna-first-item (node-test, 80 ms)
 ```
 
-Lệnh này phát lại một trace đã ghi trên một danh sách việc cần làm trong bộ nhớ, tức hệ thống tham chiếu. Tất cả các lệnh: [docs/command.md](../../docs/command.md).
+Lệnh này phát lại một trace đã ghi trên một danh sách việc cần làm trong bộ nhớ, tức hệ thống tham chiếu. Tất cả các lệnh: [docs/command.md](docs/command.md).
 
 ## Cách hoạt động
 
@@ -99,7 +99,7 @@ Một lần chạm được lưu theo tên của nút, không theo vị trí c�
 ECR muốn trở thành một chuẩn mà ai cũng có thể hiện thực, không phải một công cụ.
 
 - **Đặc tả.** [Định dạng trace](../../spec/schema.ts), cũng được công bố dưới dạng [JSON Schema](../../spec/trace.schema.json), [hợp đồng adapter](../../spec/contract.ts) và [bảy định luật](../../spec/laws.md): tất định, trung thực, truy vết được, không mô hình, trạng thái, sửa an toàn, không bí mật. Đây là các bản nháp và vẫn có thể thay đổi.
-- **Bộ kiểm tra tuân thủ.** Kiểm tra một adapter theo từng định luật. Adapter nào vượt qua thì tuân thủ, bất kể ai viết nó. Cách viết một adapter: [docs/adapter.md](../../docs/adapter.md).
+- **Bộ kiểm tra tuân thủ.** Kiểm tra một adapter theo từng định luật. Adapter nào vượt qua thì tuân thủ, bất kể ai viết nó. Cách viết một adapter: [docs/adapter.md](docs/adapter.md).
 - **Bài báo.** Mô tả mẫu này, hợp đồng và một đánh giá trên một ứng dụng thật, [LocalSend](https://github.com/localsend/localsend). [Giao thức đánh giá](../../paper/protocol.md) đã được công khai trước lần đo đầu tiên. Bài báo đang được viết: bản preprint sẽ lên Zenodo cùng bản phát hành đầu tiên.
 - **Trích dẫn.** [CITATION.cff](../../CITATION.cff), hoặc "Cite this repository" trên trang của repo. DOI sẽ có cùng bản phát hành đầu tiên.
 
@@ -126,7 +126,7 @@ ECR muốn trở thành một chuẩn mà ai cũng có thể hiện thực, khô
 - **Đang làm:** một ứng dụng thật là LocalSend, và bản phát hành đầu tiên cùng preprint và DOI.
 - **Chưa có:** iOS, sửa trên thiết bị, gói trên npm.
 
-Chi tiết từng phần: [docs/status.md](../../docs/status.md).
+Chi tiết từng phần: [docs/status.md](docs/status.md).
 
 ## Nguồn gốc
 

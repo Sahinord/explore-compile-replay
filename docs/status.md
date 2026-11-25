@@ -1,5 +1,7 @@
 # What exists today
 
+English · [简体中文](../i18n/zh-CN/docs/status.md) · [日本語](../i18n/ja/docs/status.md) · [Español](../i18n/es/docs/status.md) · [Português](../i18n/pt-BR/docs/status.md) · [Tiếng Việt](../i18n/vi/docs/status.md) · [Türkçe](../i18n/tr/docs/status.md)
+
 Part by part, with what is a draft and what is not started. Updated with the code.
 
 | Part | Status |
@@ -13,7 +15,7 @@ Part by part, with what is a draft and what is not started. Updated with the cod
 | Reference adapter, [`packages/adapter-fixture`](../packages/adapter-fixture/src/adapter.ts) | Runs. A to-do list in memory, compiled to a plain `node:test` file |
 | Conformance kit, [`packages/conformance`](../packages/conformance/src/index.ts) | Checks L1, L2, L3, L4 (with the network closed), L5 and L7, and part of L6 |
 | Repair, [`packages/core`](../packages/core/src/repair.ts) | First slice: `ecr repair` accepts or refuses a new action for the step that diverged. It calls no model and proposes nothing itself. Tried on the reference adapter only, not yet on a device |
-| Mobile adapter, [`packages/adapter-maestro`](../packages/adapter-maestro/README.md) | Draft. A mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows. On an Android emulator, against the demo app of mobile-agent-testers: two flows written by hand replay in a [run started by hand](../.github/workflows/device.yml), and of four paths explored by an agent, two stopped on a step and two, of 37 and 25 steps, replayed in full with no model. A failure names its step or its oracle. No driver. Not tried on iOS. A real app, LocalSend, is being tried now |
+| Mobile adapter, [`packages/adapter-maestro`](../packages/adapter-maestro/README.md) | Draft. A mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows. On an Android emulator, against the demo app of mobile-agent-testers: two flows written by hand replay in a [run started by hand](../.github/workflows/device.yml), and of four paths explored by an agent, two stopped on a step and two, of 37 and 25 steps, replayed in full with no model. A failure names its step or its oracle. No driver. Not tried on iOS. On LocalSend, a real app being tried now, the path of an agent (8 steps) and 20 of the 24 paths of a robot with no model replayed in full |
 | Web adapter, compiling to Playwright tests | Not started. Open to contributions: [CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Drift benchmark: does a replay break, repair, or stay red when it should? | Not run. Its protocol is written first: [`paper/protocol.md`](../paper/protocol.md) |
 | Paper | Being written. No measured result yet. The preprint will be published on Zenodo with the first release |

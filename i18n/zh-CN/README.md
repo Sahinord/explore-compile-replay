@@ -11,7 +11,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-1f883d)](../../LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/pierridotite/explore-compile-replay?color=1f883d)](https://github.com/pierridotite/explore-compile-replay/commits/main)
 
-**[快速开始](#quick-start)** · **[文档](../../docs/command.md)** · **[论文与规范](#paper-and-specification)** · **[参与贡献](../../CONTRIBUTING.md)** · **[更新日志](../../CHANGELOG.md)**
+**[快速开始](#quick-start)** · **[文档](docs/command.md)** · **[论文与规范](#paper-and-specification)** · **[参与贡献](../../CONTRIBUTING.md)** · **[更新日志](../../CHANGELOG.md)**
 
 <sub>[English](../../README.md) · 简体中文 · [日本語](../ja/README.md) · [Español](../es/README.md) · [Português](../pt-BR/README.md) · [Tiếng Việt](../vi/README.md) · [Türkçe](../tr/README.md)</sub>
 
@@ -44,7 +44,7 @@ pnpm ecr replay packages/adapter-fixture/examples/anna-first-item.trace.json \
 # pass  anna-first-item (node-test, 80 ms)
 ```
 
-这会针对一个内存中的待办清单（参考系统）重放一份已记录的轨迹。所有命令见 [docs/command.md](../../docs/command.md)。
+这会针对一个内存中的待办清单（参考系统）重放一份已记录的轨迹。所有命令见 [docs/command.md](docs/command.md)。
 
 ## 工作原理
 
@@ -99,7 +99,7 @@ pnpm ecr replay packages/adapter-fixture/examples/anna-first-item.trace.json \
 ECR 想成为任何人都能实现的标准，而不只是一个工具。
 
 - **规范。** [轨迹格式](../../spec/schema.ts)（也以 [JSON Schema](../../spec/trace.schema.json) 形式发布）、[适配器契约](../../spec/contract.ts)和[七条定律](../../spec/laws.md)：确定性、忠实性、可追溯性、无模型、状态、安全修复、无机密。它们都是草案，仍可能变化。
-- **一致性套件。** 按定律逐条检查一个适配器。通过它的适配器就是符合规范的，无论作者是谁。如何编写适配器：[docs/adapter.md](../../docs/adapter.md)。
+- **一致性套件。** 按定律逐条检查一个适配器。通过它的适配器就是符合规范的，无论作者是谁。如何编写适配器：[docs/adapter.md](docs/adapter.md)。
 - **论文。** 描述这一模式、契约，以及在真实应用 [LocalSend](https://github.com/localsend/localsend) 上的评估。它的[评估协议](../../paper/protocol.md)在第一次正式测量之前就已公开。论文正在撰写，预印本将随第一个版本发布在 Zenodo 上。
 - **引用。** [CITATION.cff](../../CITATION.cff)，或仓库页面上的 "Cite this repository"。DOI 将随第一个版本提供。
 
@@ -126,7 +126,7 @@ ECR 想成为任何人都能实现的标准，而不只是一个工具。
 - **进行中：** 一个真实应用 LocalSend，以及第一个版本，附带预印本和 DOI。
 - **尚未开始：** iOS、在设备上修复、npm 包。
 
-逐个部分的说明：[docs/status.md](../../docs/status.md)。
+逐个部分的说明：[docs/status.md](docs/status.md)。
 
 ## 从哪里来
 
