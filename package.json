@@ -16,6 +16,7 @@
     "test": "node --test \"packages/**/*.test.ts\"",
     "ecr": "node packages/cli/src/main.ts",
     "conformance": "node packages/adapter-fixture/conformance.ts",
+    "size": "node spec/adapter-size.ts",
     "check": "pnpm typecheck && pnpm schema --check && pnpm check:examples && pnpm test && pnpm conformance"
   },
   "dependencies": {
