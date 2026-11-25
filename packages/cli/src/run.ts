@@ -1,0 +1,246 @@
+/**
+ * The `ecr` command.
+ *
+ *   ecr validate <trace...> [--adapter <module>]
+ *   ecr compile <trace...> --adapter <module> [--target <id>] [--out <dir>] [--check]
+ *   ecr replay <trace...> --adapter <module> [--target <id>]
+ *   ecr conformance <trace...> --adapter <module>
+ *
+ * No command here calls a model. Exploring is done by an agent, through
+ * the MCP server (not written yet).
+ *
+ * Status: draft.
+ */
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import type { Adapter, Target, TypedTrace } from "../../../spec/contract.ts";
+import { Trace, type Divergence } from "../../../spec/schema.ts";
+import { checkAdapter, conforms, formatReport } from "../../conformance/src/index.ts";
+import { TraceError, parseTrace } from "../../core/src/index.ts";
+
+export interface Io {
+  readonly out: (line: string) => void;
+  readonly err: (line: string) => void;
+  readonly env: Readonly<Record<string, string | undefined>>;
+  readonly cwd: string;
+}
+
+/** 0: all good. 1: a check failed. 2: the command could not run. */
+export type ExitCode = 0 | 1 | 2;
+
+/** Prefix of the environment variables that carry parameter values. */
+export const PARAM_PREFIX = "ECR_PARAM_";
+
+export const USAGE = `Usage:
+  ecr validate <trace...> [--adapter <module>]
+      Check traces against the schema, and against an adapter's vocabularies when one is given.
+  ecr compile <trace...> --adapter <module> [--target <id>] [--out <dir>] [--check]
+      Compile each trace to a test file, next to the trace or in <dir>.
+      With --check, write nothing and fail if a file is missing or out of date.
+  ecr replay <trace...> --adapter <module> [--target <id>]
+      Compile each trace and run the result. No model is called.
+  ecr conformance <trace...> --adapter <module>
+      Check the adapter against the seven laws, with these traces.
+
+  <module> is a file whose default export is an adapter (see spec/contract.ts).
+  A parameter NAME of a trace takes its value from the environment variable ${PARAM_PREFIX}NAME.`;
+
+class UsageError extends Error {}
+
+type AnyAdapter = Adapter<unknown, unknown, unknown>;
+type AnyTrace = TypedTrace<unknown, unknown>;
+
+async function loadAdapter(io: Io, path: string | undefined): Promise<AnyAdapter> {
+  if (path === undefined) throw new UsageError("This command needs --adapter <module>");
+  const file = resolve(io.cwd, path);
+  if (!existsSync(file)) throw new UsageError(`No adapter module at ${path}`);
+  const loaded = ((await import(pathToFileURL(file).href)) as { default?: unknown }).default;
+  const adapter = (typeof loaded === "function" ? await loaded() : loaded) as Partial<AnyAdapter> | undefined;
+  if (!adapter || typeof adapter.id !== "string" || !adapter.actions || !adapter.oracles || !adapter.driver || !Array.isArray(adapter.targets)) {
+    throw new UsageError(`${path} does not export an adapter by default`);
+  }
+  return adapter as AnyAdapter;
+}
+
+function readJson(io: Io, path: string): unknown {
+  const file = resolve(io.cwd, path);
+  if (!existsSync(file)) throw new UsageError(`No trace at ${path}`);
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    throw new UsageError(`${path} is not valid JSON: ${(error as Error).message}`);
+  }
+}
+
+function pickTarget(adapter: AnyAdapter, id: string | undefined): Target<unknown, unknown> {
+  const ids = adapter.targets.map((target) => target.id);
+  const target = id === undefined ? adapter.targets[0] : adapter.targets.find((entry) => entry.id === id);
+  if (!target) throw new UsageError(id === undefined ? `Adapter ${adapter.id} has no target` : `Adapter ${adapter.id} has no target "${id}". It has: ${ids.join(", ")}`);
+  return target;
+}
+
+/** Values of the parameters a trace declares, read from the environment. */
+function paramValues(io: Io, trace: AnyTrace): Record<string, string> {
+  const values: Record<string, string> = {};
+  const missing: string[] = [];
+  for (const param of trace.params) {
+    const value = io.env[PARAM_PREFIX + param.name];
+    if (value === undefined) missing.push(PARAM_PREFIX + param.name);
+    else values[param.name] = value;
+  }
+  if (missing.length > 0) throw new UsageError(`Trace ${trace.id} needs these environment variables: ${missing.join(", ")}`);
+  return values;
+}
+
+/** Reads the traces, and reports the ones that are not valid. */
+function loadTraces(io: Io, adapter: AnyAdapter, paths: readonly string[]): { path: string; trace: AnyTrace }[] | undefined {
+  const traces: { path: string; trace: AnyTrace }[] = [];
+  let invalid = false;
+  for (const path of paths) {
+    try {
+      traces.push({ path, trace: parseTrace(adapter, readJson(io, path)) });
+    } catch (error) {
+      if (!(error instanceof TraceError)) throw error;
+      invalid = true;
+      io.err(`FAIL  ${path}`);
+      for (const issue of error.issues) io.err(`      ${issue}`);
+    }
+  }
+  return invalid ? undefined : traces;
+}
+
+function describe(divergence: Divergence): string {
+  const where = divergence.stepId === undefined ? "" : `  step ${divergence.stepId}`;
+  const oracle = divergence.type === "oracle_failed" ? `  oracle ${divergence.oracleId}` : "";
+  const text = (divergence.message ?? "").split("\n").map((line) => line.trim()).filter(Boolean).join(" ");
+  const message = text === "" ? "" : `: ${text.length > 200 ? `${text.slice(0, 200)}...` : text}`;
+  return `${divergence.type}${where}${oracle}${message}`;
+}
+
+async function validate(io: Io, paths: readonly string[], adapterPath: string | undefined): Promise<ExitCode> {
+  if (adapterPath !== undefined) {
+    const traces = loadTraces(io, await loadAdapter(io, adapterPath), paths);
+    if (!traces) return 1;
+    for (const { path, trace } of traces) io.out(`ok    ${path} (${trace.steps.length} steps)`);
+    return 0;
+  }
+  let failed = false;
+  for (const path of paths) {
+    const result = Trace.safeParse(readJson(io, path));
+    if (result.success) {
+      io.out(`ok    ${path} (${result.data.steps.length} steps, vocabularies not checked: no --adapter)`);
+    } else {
+      failed = true;
+      io.err(`FAIL  ${path}`);
+      for (const issue of result.error.issues) io.err(`      ${issue.path.join(".")}: ${issue.message}`);
+    }
+  }
+  return failed ? 1 : 0;
+}
+
+async function compile(io: Io, paths: readonly string[], options: { adapter?: string; target?: string; out?: string; check: boolean }): Promise<ExitCode> {
+  const adapter = await loadAdapter(io, options.adapter);
+  const target = pickTarget(adapter, options.target);
+  const traces = loadTraces(io, adapter, paths);
+  if (!traces) return 1;
+
+  let stale = false;
+  for (const { path, trace } of traces) {
+    const artifact = target.compile(trace);
+    const dir = resolve(io.cwd, options.out ?? dirname(path));
+    const file = join(dir, artifact.path);
+    const shown = join(options.out ?? dirname(path), artifact.path);
+    if (options.check) {
+      const current = existsSync(file) ? readFileSync(file, "utf8") : undefined;
+      if (current === artifact.content) {
+        io.out(`ok     ${shown}`);
+      } else {
+        stale = true;
+        io.err(`${current === undefined ? "MISSING" : "STALE  "} ${shown} (compile ${path} again)`);
+      }
+    } else {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(file, artifact.content);
+      io.out(`wrote  ${shown} (${target.id}, ${artifact.sourceMap.length} steps)`);
+    }
+  }
+  return stale ? 1 : 0;
+}
+
+async function replay(io: Io, paths: readonly string[], options: { adapter?: string; target?: string }): Promise<ExitCode> {
+  const adapter = await loadAdapter(io, options.adapter);
+  const target = pickTarget(adapter, options.target);
+  const traces = loadTraces(io, adapter, paths);
+  if (!traces) return 1;
+  const runs = traces.map(({ trace }) => ({ trace, params: paramValues(io, trace) }));
+
+  let failed = false;
+  for (const { trace, params } of runs) {
+    const result = await target.replay(target.compile(trace), { params });
+    const time = `${Math.round(result.durationMs)} ms`;
+    if (result.verdict === "pass") {
+      io.out(`pass  ${trace.id} (${target.id}, ${time})`);
+      continue;
+    }
+    failed = true;
+    io.err(`FAIL  ${trace.id} (${target.id}, ${time})`);
+    for (const divergence of result.divergences) io.err(`      ${describe(divergence)}`);
+    if (result.divergences.some((divergence) => divergence.type === "oracle_failed")) {
+      io.err("      A failed oracle is never repaired: it is a regression or an intended change, and a person decides.");
+    }
+  }
+  return failed ? 1 : 0;
+}
+
+async function conformance(io: Io, paths: readonly string[], options: { adapter?: string }): Promise<ExitCode> {
+  const adapter = await loadAdapter(io, options.adapter);
+  const traces = loadTraces(io, adapter, paths);
+  if (!traces) return 1;
+  const cases = traces.map(({ trace }) => ({ trace, params: paramValues(io, trace) }));
+  const results = await checkAdapter(adapter, cases);
+  io.out(`Conformance of adapter "${adapter.id}"\n`);
+  io.out(formatReport(results));
+  return conforms(results) ? 0 : 1;
+}
+
+export async function run(argv: readonly string[], io: Io): Promise<ExitCode> {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      options: {
+        adapter: { type: "string" },
+        target: { type: "string" },
+        out: { type: "string" },
+        check: { type: "boolean", default: false },
+        help: { type: "boolean", short: "h", default: false },
+      },
+    });
+    const [command, ...paths] = positionals;
+    if (values.help || command === undefined || command === "help") {
+      io.out(USAGE);
+      return command === undefined && !values.help ? 2 : 0;
+    }
+    if (!["validate", "compile", "replay", "conformance"].includes(command)) throw new UsageError(`Unknown command "${command}"`);
+    if (paths.length === 0) throw new UsageError(`ecr ${command} needs at least one trace file`);
+
+    const options = {
+      ...(values.adapter === undefined ? {} : { adapter: values.adapter }),
+      ...(values.target === undefined ? {} : { target: values.target }),
+      ...(values.out === undefined ? {} : { out: values.out }),
+    };
+    if (command === "validate") return await validate(io, paths, values.adapter);
+    if (command === "compile") return await compile(io, paths, { ...options, check: values.check });
+    if (command === "replay") return await replay(io, paths, options);
+    return await conformance(io, paths, options);
+  } catch (error) {
+    if (error instanceof UsageError || (error as { code?: string }).code?.startsWith("ERR_PARSE_ARGS")) {
+      io.err(`ecr: ${(error as Error).message}`);
+      io.err("Run `ecr --help` for the commands.");
+      return 2;
+    }
+    throw error;
+  }
+}

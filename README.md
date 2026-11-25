@@ -90,14 +90,16 @@ An adapter is correct when it obeys seven laws. A conformance kit checks them, s
 
 | Part | Status |
 |---|---|
-| Trace schema, [`spec/schema.ts`](spec/schema.ts) | Draft. Type-checked, with a validated example |
+| Trace schema, [`spec/schema.ts`](spec/schema.ts) | Draft. Type-checked, with a validated example and a generated [JSON Schema](spec/trace.schema.json) |
 | Adapter contract, [`spec/contract.ts`](spec/contract.ts) | Draft. Type-checked |
 | Seven laws, [`spec/laws.md`](spec/laws.md) | Draft |
-| Core, [`packages/core`](packages/core/src/index.ts) | First slice: record a trace through a driver, hash it, resolve parameters, check a source map. No `ecr` command and no MCP server yet |
+| Core, [`packages/core`](packages/core/src/index.ts) | First slice: record a trace through a driver, validate it, hash it, resolve parameters, check a source map |
+| `ecr` command, [`packages/cli`](packages/cli/src/run.ts) | Runs from this repository: `validate`, `compile`, `replay`, `conformance`. Not on npm yet |
+| MCP server and skills, for an agent to explore | Not started |
 | Reference adapter, [`packages/adapter-fixture`](packages/adapter-fixture/src/adapter.ts) | Runs. A to-do list in memory, compiled to a plain `node:test` file |
 | Conformance kit, [`packages/conformance`](packages/conformance/src/index.ts) | First slice. Checks L1, L3, L5 and L7, part of L2 and L4. L6 waits for repair |
 | Repair | Not started |
-| Mobile adapter, compiling to Maestro flows | Planned |
+| Mobile adapter, [`packages/adapter-maestro`](packages/adapter-maestro/README.md) | Draft. A mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows. Checked for syntax, not yet run on a device. No driver, no typed divergences yet |
 | Web adapter, compiling to Playwright tests | Planned |
 | Drift benchmark: does a replay break, repair, or stay red when it should? | Planned |
 | Paper | Planned |
@@ -108,7 +110,7 @@ You need Node 22.18 or later and pnpm.
 
 ```sh
 pnpm install
-pnpm check        # types, examples, tests, conformance
+pnpm check        # types, schema, examples, tests, conformance
 pnpm conformance  # the report alone
 ```
 
@@ -131,7 +133,36 @@ To see the three steps on one example, read these two files side by side:
 - the trace an exploration recorded: [`anna-first-item.trace.json`](packages/adapter-fixture/examples/anna-first-item.trace.json)
 - the test it compiles to: [`anna-first-item.test.mjs`](packages/adapter-fixture/examples/anna-first-item.test.mjs). It imports nothing from this project, and it holds the names of its parameters, never their values.
 
+The same for a mobile app: [a trace](packages/adapter-maestro/examples/anna-first-item-mobile.trace.json) and [the Maestro flow](packages/adapter-maestro/examples/anna-first-item-mobile.flow.yaml) it compiles to.
+
 The tests replay that file against two changed versions of the system. A new behaviour comes back as a failed oracle. A target that moved comes back as `target_not_found` on its step.
+
+### The `ecr` command
+
+It runs from this repository for now. Compiling and replaying call no model.
+
+```sh
+TRACE=packages/adapter-fixture/examples/anna-first-item.trace.json
+ADAPTER=packages/adapter-fixture/src/index.ts
+
+pnpm ecr validate $TRACE --adapter $ADAPTER          # schema, then the adapter's vocabularies
+pnpm ecr compile $TRACE --adapter $ADAPTER --check   # is the compiled file up to date? For CI
+
+export ECR_PARAM_ITEM_TITLE="Buy bread" ECR_PARAM_PRIVATE_NOTE="Door code 4821"
+pnpm ecr replay $TRACE --adapter $ADAPTER            # pass  anna-first-item (node-test, 80 ms)
+pnpm ecr conformance $TRACE --adapter $ADAPTER       # the report above, for any adapter
+```
+
+A trace stores the names of its parameters. Their values come from the environment when the test runs, as `ECR_PARAM_<NAME>`.
+
+Point the replay at a system whose behaviour changed, and it fails with the step and the oracle:
+
+```text
+$ pnpm ecr replay $TRACE --adapter packages/adapter-fixture/test/systems/drifted-adapter.ts
+FAIL  anna-first-item (node-test, 95 ms)
+      oracle_failed  step s1  oracle not-done-yet: Expected values to be strictly equal: true !== false
+      A failed oracle is never repaired: it is a regression or an intended change, and a person decides.
+```
 
 ## Roadmap
 
@@ -140,7 +171,7 @@ These are targets, not promises.
 | When | What |
 |---|---|
 | Week of 24 November 2026 | The contract in the open: schema, adapter contract, laws |
-| Week of 1 December | `ecr` command, MCP server, the rest of the conformance kit. First real adapter: mobile, with Maestro |
+| Week of 1 December | The mobile adapter on a real device, with traces written by mobile-agent-testers. MCP server and skills, the rest of the conformance kit |
 | Week of 8 December | Web adapter with Playwright, drift benchmark, version 0.1 |
 | After | A real app as a case study, more adapters, a paper |
 

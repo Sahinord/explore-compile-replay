@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "ecr.trace/0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adapter": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "persona": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "locale": {
+          "type": "string"
+        },
+        "context": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id",
+        "profile",
+        "goal"
+      ]
+    },
+    "params": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "secret": {
+            "default": false,
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "invariants": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "check": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "id",
+          "check"
+        ]
+      }
+    },
+    "steps": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "intent": {
+            "type": "string"
+          },
+          "action": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": {}
+          },
+          "checkpoints": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "check": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "id",
+                "check"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "action"
+        ]
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "exploredAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "agent": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "exploredAt"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "adapter",
+    "persona",
+    "steps",
+    "provenance"
+  ],
+  "$id": "https://github.com/pierridotite/explore-compile-replay/blob/main/spec/trace.schema.json",
+  "title": "Explore-Compile-Replay trace (ecr.trace/0)"
+}
