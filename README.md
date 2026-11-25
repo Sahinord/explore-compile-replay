@@ -4,7 +4,7 @@
 
 **An agent explores your app once. What it did becomes a standard test. The test reruns in CI with no model.**
 
-**[How it works](#how-it-works)** · **[Quick start](#quick-start)** · **[The command](docs/command.md)** · **[Write an adapter](docs/adapter.md)** · **[Seven laws](spec/laws.md)** · **[Status](docs/status.md)**
+**[How it works](#how-it-works)** · **[Quick start](#quick-start)** · **[The command](docs/command.md)** · **[Write an adapter](docs/adapter.md)** · **[Seven laws](spec/laws.md)** · **[Paper and specification](#paper-and-specification)** · **[Contribute](CONTRIBUTING.md)**
 
 AI agents are good at finding what nobody thought to test. They are also slow,
 they cost money on every run, and they never take the same path twice, so they
@@ -121,6 +121,15 @@ An adapter connects ECR to one kind of system: a mobile app, a web app, an API. 
 
 The shape of an adapter and the choices behind it: [docs/adapter.md](docs/adapter.md).
 
+## Paper and specification
+
+ECR is meant to be a standard that anyone can implement, not one tool. So it is written down, it can be checked, and it is being evaluated in the open.
+
+- **The specification** is three files: the [trace format](spec/schema.ts), also published as a [JSON Schema](spec/trace.schema.json), the [adapter contract](spec/contract.ts) and the [seven laws](spec/laws.md). All three are drafts and can still change. What changed is in the [changelog](CHANGELOG.md).
+- **The conformance kit** checks an adapter against the laws and prints a report, law by law. An adapter that passes it conforms, whoever wrote it: [the report of the reference adapter](docs/command.md#check-your-clone).
+- **A paper** describes the pattern, the contract and an evaluation on a real app. It is being written, and no result is measured yet. Its [evaluation protocol](paper/protocol.md) was made public before the first measured run, and every later change to it is a dated amendment. The preprint will be published on Zenodo with the first release.
+- **To cite this work**, use [CITATION.cff](CITATION.cff), or "Cite this repository" on the page of the repository. A DOI will come with the first release.
+
 ## What works today
 
 - The trace format, the adapter contract and the seven laws, as drafts: [spec/](spec/).
@@ -132,9 +141,10 @@ The shape of an adapter and the choices behind it: [docs/adapter.md](docs/adapte
 Not yet:
 
 - A real app. A first one, [LocalSend](https://github.com/localsend/localsend), is being tried now. How it will be measured was written first: [paper/protocol.md](paper/protocol.md).
-- iOS, and a web adapter that compiles to Playwright tests.
-- Exploring through ECR itself: an MCP server and skills for your agent. Today the trace is written by the tool that drives the agent.
-- A repair on a device, and a package on npm.
+- iOS, and a repair on a device.
+- A web adapter that compiles to Playwright tests. Open to contributions: [where it starts](CONTRIBUTING.md#a-web-adapter-compiled-to-playwright-tests).
+- Exploring through ECR itself, with an MCP server for your agent. Today the trace is written by the tool that drives the agent. Open to contributions too: [where it starts](CONTRIBUTING.md#an-mcp-server-so-that-your-own-agent-explores-through-ecr).
+- A package on npm.
 
 Part by part: [docs/status.md](docs/status.md).
 
@@ -151,16 +161,16 @@ ECR does not claim to be first. Several tools already keep or replay what an age
 Targets, not promises.
 
 - The evaluation on LocalSend: cost, stability of the replays, and what happens when the app changes.
+- A first release, with the preprint of the paper and a DOI.
 - A repair on a device.
-- An MCP server and skills, so that your own agent explores through ECR.
-- A web adapter with Playwright, then a first version on npm.
+- A web adapter with Playwright and an MCP server, with whoever wants to build them: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Feedback
+## Feedback and contributions
 
 The contract is the thing to challenge right now. If you maintain a test tool or an agent framework, or if you would write an adapter, [open an issue](https://github.com/pierridotite/explore-compile-replay/issues/new) and say what would not fit your system.
 
-To talk it through, or to follow the work as it happens, join the [Discord](https://discord.gg/WuaCANscr8). It is shared with mobile-agent-testers.
+To write code, [CONTRIBUTING.md](CONTRIBUTING.md) lists two large pieces that are open, a web adapter and an MCP server, and smaller tasks to start with.
 
-To cite this work: [CITATION.cff](CITATION.cff).
+To talk it through, or to follow the work as it happens, join the [Discord](https://discord.gg/WuaCANscr8). It is shared with mobile-agent-testers.
 
 Made by [@pierridotite](https://github.com/pierridotite) ([LinkedIn](https://www.linkedin.com/in/pierre-raffalli/)) · [Apache-2.0](LICENSE)
