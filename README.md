@@ -90,7 +90,7 @@ An adapter is correct when it obeys seven laws. A conformance kit checks them, s
 
 | Part | Status |
 |---|---|
-| Trace schema, [`spec/schema.ts`](spec/schema.ts) | Draft. Type-checked, with a validated example and a generated [JSON Schema](spec/trace.schema.json) |
+| Trace schema, [`spec/schema.ts`](spec/schema.ts) | Draft. Type-checked, with a validated example and a generated [JSON Schema](spec/trace.schema.json). A step may carry evidence (a screenshot, where the finger landed) for tools that show a trace |
 | Adapter contract, [`spec/contract.ts`](spec/contract.ts) | Draft. Type-checked |
 | Seven laws, [`spec/laws.md`](spec/laws.md) | Draft |
 | Core, [`packages/core`](packages/core/src/index.ts) | First slice: record a trace through a driver, validate it, hash it, resolve parameters, check a source map |

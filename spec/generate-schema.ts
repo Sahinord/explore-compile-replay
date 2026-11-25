@@ -1,38 +1,55 @@
 /**
- * Writes the JSON Schema of a trace, generated from `schema.ts`.
+ * Writes the JSON Schemas generated from the TypeScript sources.
  *
- *   pnpm schema           rewrite spec/trace.schema.json
- *   pnpm schema --check   fail if the file is not what `schema.ts` gives today
+ *   pnpm schema           rewrite the files
+ *   pnpm schema --check   fail if a file is not what the sources give today
  *
- * The JSON Schema is for editors and for tools that are not written in
- * TypeScript. `schema.ts` stays the source of truth.
+ * The JSON Schemas are for editors and for tools that are not written in
+ * TypeScript. The `.ts` files stay the source of truth.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
+import { actions, oracles } from "../packages/adapter-maestro/src/adapter.ts";
 import { TRACE_SCHEMA, Trace } from "./schema.ts";
 
-const file = join(import.meta.dirname, "trace.schema.json");
-const schema = {
-  ...z.toJSONSchema(Trace, { io: "input" }),
-  $id: "https://github.com/pierridotite/explore-compile-replay/blob/main/spec/trace.schema.json",
-  title: `Explore-Compile-Replay trace (${TRACE_SCHEMA})`,
-};
-const content = `${JSON.stringify(schema, null, 2)}\n`;
+const root = join(import.meta.dirname, "..");
+const base = "https://github.com/pierridotite/explore-compile-replay/blob/main/";
 
-if (process.argv.includes("--check")) {
+const files: { path: string; schema: object }[] = [
+  {
+    path: "spec/trace.schema.json",
+    schema: { ...z.toJSONSchema(Trace, { io: "input" }), title: `Explore-Compile-Replay trace (${TRACE_SCHEMA})` },
+  },
+  {
+    path: "packages/adapter-maestro/vocabulary.schema.json",
+    schema: {
+      ...z.toJSONSchema(z.object({ action: actions, oracle: oracles }), { io: "input" }),
+      title: "Mobile vocabulary: what a step may do (action) and what a checkpoint may check (oracle)",
+    },
+  },
+];
+
+let stale = false;
+for (const { path, schema } of files) {
+  const file = join(root, path);
+  const content = `${JSON.stringify({ ...schema, $id: base + path }, null, 2)}\n`;
+  if (!process.argv.includes("--check")) {
+    writeFileSync(file, content);
+    console.log(`wrote ${path}`);
+    continue;
+  }
   let current = "";
   try {
     current = readFileSync(file, "utf8");
   } catch {
     // A missing file is reported like a stale one.
   }
-  if (current !== content) {
-    console.error("spec/trace.schema.json is not up to date. Run: pnpm schema");
-    process.exit(1);
+  if (current === content) {
+    console.log(`ok    ${path} is up to date`);
+  } else {
+    stale = true;
+    console.error(`${path} is not up to date. Run: pnpm schema`);
   }
-  console.log("ok    trace.schema.json is up to date");
-} else {
-  writeFileSync(file, content);
-  console.log("wrote spec/trace.schema.json");
 }
+if (stale) process.exit(1);
