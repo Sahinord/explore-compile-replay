@@ -6,7 +6,7 @@ Everything here runs from a clone of this repository, with Node 22.18 or later a
 
 ```sh
 pnpm install
-pnpm check        # types, schema, examples, tests, conformance
+pnpm check        # types, schema, examples, links, tests, conformance
 pnpm conformance  # the report alone
 ```
 

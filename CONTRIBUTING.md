@@ -6,7 +6,7 @@ The most useful thing you can do today costs no code: read the [contract](spec/c
 
 ## Before you open a pull request
 
-- Run `pnpm check`: types, generated schemas, examples, tests and the conformance report. You need Node 22.18 or later and pnpm. Nothing needs a phone, a browser or a key.
+- Run `pnpm check`: types, generated schemas, examples, links, tests and the conformance report. You need Node 22.18 or later and pnpm. Nothing needs a phone, a browser or a key.
 - Compiling and replaying call no model, and CI runs the conformance kit with the network closed. Keep it so.
 - A trace and a compiled file never hold a secret value. A text that was typed is stored by its name.
 - [`spec/`](spec/) is the specification: the trace format, the adapter contract, the laws. A change there changes what every adapter must do, so it starts with an issue that says which system it does not fit, and why.

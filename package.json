@@ -17,7 +17,8 @@
     "ecr": "node packages/cli/src/main.ts",
     "conformance": "node packages/adapter-fixture/conformance.ts",
     "size": "node spec/adapter-size.ts",
-    "check": "pnpm typecheck && pnpm schema --check && pnpm check:examples && pnpm test && pnpm conformance"
+    "check:links": "node scripts/check-links.ts",
+    "check": "pnpm typecheck && pnpm schema --check && pnpm check:examples && pnpm check:links && pnpm test && pnpm conformance"
   },
   "dependencies": {
     "zod": "^4.6.7"
