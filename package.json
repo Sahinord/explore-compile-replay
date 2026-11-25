@@ -12,7 +12,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check:examples": "node spec/check-examples.ts",
-    "check": "pnpm typecheck && pnpm check:examples"
+    "test": "node --test \"packages/**/*.test.ts\"",
+    "conformance": "node packages/adapter-fixture/conformance.ts",
+    "check": "pnpm typecheck && pnpm check:examples && pnpm test && pnpm conformance"
   },
   "dependencies": {
     "zod": "^4.6.7"

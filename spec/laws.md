@@ -2,7 +2,7 @@
 
 Status: draft. The wording will change before 0.1.
 
-An adapter is correct when it obeys these laws. Each law has an identifier, a statement, and the way the conformance kit will check it. The kit does not exist yet: the checks below are its specification.
+An adapter is correct when it obeys these laws. Each law has an identifier, a statement, and the way the conformance kit checks it. A first slice of the kit is in [`packages/conformance`](../packages/conformance/src/index.ts): it covers L1, L3, L5 and L7, and part of L2 and L4. The checks below are its specification.
 
 Words used here are defined in [`schema.ts`](schema.ts) (trace, step, oracle, artifact, divergence) and in [`contract.ts`](contract.ts) (driver, target).
 
