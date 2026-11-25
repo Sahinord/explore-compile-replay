@@ -1,0 +1,65 @@
+# Compiled by Explore-Compile-Replay: https://github.com/pierridotite/explore-compile-replay
+# Trace: anna-first-item-mobile
+# Trace hash: sha256:53ee8d50917a0cc6713f10a8cb812544460c0b5dfc578d92509ffcfecd4d060b
+# Do not edit by hand. Change the trace and compile again.
+# Run: maestro test -e ITEM_TITLE=<value> -e ACCOUNT_PASSWORD=<value> <this file>
+appId: com.example.todo
+name: "anna: Add her first item without help."
+---
+# Step s1: She opens the app for the first time.
+- launchApp:
+    clearState: true
+# Oracle sign-in-shown
+- assertVisible:
+    text: "Sign in"
+# Oracle no-crash-dialog
+- assertNotVisible:
+    text: "App keeps stopping"
+# Step s2: She taps the password field. It has no label, only an id.
+- tapOn:
+    id: "password_field"
+# Oracle no-crash-dialog
+- assertNotVisible:
+    text: "App keeps stopping"
+# Step s3
+- inputText: "${ACCOUNT_PASSWORD}"
+# Oracle no-crash-dialog
+- assertNotVisible:
+    text: "App keeps stopping"
+# Step s4
+- tapOn:
+    text: "Sign in"
+# Oracle list-empty
+- assertVisible:
+    text: "Nothing here yet \\(0 items\\)"
+# Oracle no-crash-dialog
+- assertNotVisible:
+    text: "App keeps stopping"
+# Step s5: The list is empty, so she looks for a way to add something.
+- tapOn:
+    text: "Add item"
+# Oracle no-crash-dialog
+- assertNotVisible:
+    text: "App keeps stopping"
+# Step s6
+- inputText: "${ITEM_TITLE}"
+# Oracle no-crash-dialog
+- assertNotVisible:
+    text: "App keeps stopping"
+# Step s7: The keyboard hides the Save button, so she closes it.
+- hideKeyboard
+# Oracle no-crash-dialog
+- assertNotVisible:
+    text: "App keeps stopping"
+# Step s8
+- tapOn:
+    text: "Save"
+# Oracle item-listed
+- assertVisible:
+    text: "${ITEM_TITLE}"
+# Oracle empty-message-gone
+- assertNotVisible:
+    text: "Nothing here yet \\(0 items\\)"
+# Oracle no-crash-dialog
+- assertNotVisible:
+    text: "App keeps stopping"

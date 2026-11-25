@@ -99,7 +99,7 @@ An adapter is correct when it obeys seven laws. A conformance kit checks them, s
 | Reference adapter, [`packages/adapter-fixture`](packages/adapter-fixture/src/adapter.ts) | Runs. A to-do list in memory, compiled to a plain `node:test` file |
 | Conformance kit, [`packages/conformance`](packages/conformance/src/index.ts) | First slice. Checks L1, L3, L5 and L7, part of L2 and L4. L6 waits for repair |
 | Repair | Not started |
-| Mobile adapter, compiling to Maestro flows | Planned |
+| Mobile adapter, [`packages/adapter-maestro`](packages/adapter-maestro/README.md) | Draft. A mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows. Checked for syntax, not yet run on a device. No driver, no typed divergences yet |
 | Web adapter, compiling to Playwright tests | Planned |
 | Drift benchmark: does a replay break, repair, or stay red when it should? | Planned |
 | Paper | Planned |
@@ -132,6 +132,8 @@ To see the three steps on one example, read these two files side by side:
 
 - the trace an exploration recorded: [`anna-first-item.trace.json`](packages/adapter-fixture/examples/anna-first-item.trace.json)
 - the test it compiles to: [`anna-first-item.test.mjs`](packages/adapter-fixture/examples/anna-first-item.test.mjs). It imports nothing from this project, and it holds the names of its parameters, never their values.
+
+The same for a mobile app: [a trace](packages/adapter-maestro/examples/anna-first-item-mobile.trace.json) and [the Maestro flow](packages/adapter-maestro/examples/anna-first-item-mobile.flow.yaml) it compiles to.
 
 The tests replay that file against two changed versions of the system. A new behaviour comes back as a failed oracle. A target that moved comes back as `target_not_found` on its step.
 
@@ -169,7 +171,7 @@ These are targets, not promises.
 | When | What |
 |---|---|
 | Week of 24 November 2026 | The contract in the open: schema, adapter contract, laws |
-| Week of 1 December | MCP server and skills, the rest of the conformance kit. First real adapter: mobile, with Maestro |
+| Week of 1 December | The mobile adapter on a real device, with traces written by mobile-agent-testers. MCP server and skills, the rest of the conformance kit |
 | Week of 8 December | Web adapter with Playwright, drift benchmark, version 0.1 |
 | After | A real app as a case study, more adapters, a paper |
 

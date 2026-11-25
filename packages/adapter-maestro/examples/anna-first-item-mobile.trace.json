@@ -1,0 +1,69 @@
+{
+  "schema": "ecr.trace/0",
+  "id": "anna-first-item-mobile",
+  "adapter": { "id": "mobile-maestro" },
+  "persona": {
+    "id": "anna",
+    "profile": "Retired teacher, 68, low patience with jargon, uses large text.",
+    "goal": "Add her first item without help.",
+    "locale": "en-GB",
+    "context": { "platform": "android", "device": "small phone", "fontScale": 1.3 }
+  },
+  "params": [
+    { "name": "ITEM_TITLE", "secret": false, "description": "Title of the item she adds" },
+    { "name": "ACCOUNT_PASSWORD", "secret": true, "description": "Password of the test account" }
+  ],
+  "invariants": [
+    { "id": "no-crash-dialog", "check": { "kind": "notVisible", "target": { "text": "App keeps stopping" } } }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "intent": "She opens the app for the first time.",
+      "action": { "kind": "launchApp", "appId": "com.example.todo", "clearState": true },
+      "checkpoints": [{ "id": "sign-in-shown", "check": { "kind": "visible", "target": { "text": "Sign in" } } }]
+    },
+    {
+      "id": "s2",
+      "intent": "She taps the password field. It has no label, only an id.",
+      "action": { "kind": "tapOn", "target": { "id": "password_field" } },
+      "checkpoints": []
+    },
+    {
+      "id": "s3",
+      "action": { "kind": "inputText", "text": { "param": "ACCOUNT_PASSWORD" } },
+      "checkpoints": []
+    },
+    {
+      "id": "s4",
+      "action": { "kind": "tapOn", "target": { "text": "Sign in" } },
+      "checkpoints": [{ "id": "list-empty", "check": { "kind": "visible", "target": { "text": "Nothing here yet (0 items)" } } }]
+    },
+    {
+      "id": "s5",
+      "intent": "The list is empty, so she looks for a way to add something.",
+      "action": { "kind": "tapOn", "target": { "text": "Add item" } },
+      "checkpoints": []
+    },
+    {
+      "id": "s6",
+      "action": { "kind": "inputText", "text": { "param": "ITEM_TITLE" } },
+      "checkpoints": []
+    },
+    {
+      "id": "s7",
+      "intent": "The keyboard hides the Save button, so she closes it.",
+      "action": { "kind": "hideKeyboard" },
+      "checkpoints": []
+    },
+    {
+      "id": "s8",
+      "action": { "kind": "tapOn", "target": { "text": "Save" } },
+      "checkpoints": [
+        { "id": "item-listed", "check": { "kind": "visible", "target": { "text": { "param": "ITEM_TITLE" } } } },
+        { "id": "empty-message-gone", "check": { "kind": "notVisible", "target": { "text": "Nothing here yet (0 items)" } } }
+      ]
+    }
+  ],
+  "provenance": { "exploredAt": "2026-11-25T12:00:00.000Z", "agent": "hand-written example" }
+}
