@@ -29,8 +29,8 @@ import { hashTrace, isParamRef } from "../../core/src/index.ts";
 const Text = z.union([z.string().min(1), z.strictObject({ param: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/) })]);
 type Text = z.infer<typeof Text>;
 
-/** A point in percent: of the screen, or of an element when it says where in the element. */
-const Percent = z.string().regex(/^\d{1,3}%,\d{1,3}%$/);
+/** A point in percent, from "0%,0%" to "100%,100%": of the screen, or of an element when it says where in the element. */
+const Percent = z.string().regex(/^(100|\d{1,2})%,(100|\d{1,2})%$/);
 
 /**
  * How a step finds its target. In order of preference: an accessibility id,

@@ -149,6 +149,9 @@ test("the vocabulary refuses a place in a point, and a swipe whose ends do not g
   assert.equal(ok({ kind: "tapOn", target: { text: "Title" }, at: "97%,50%" }), true);
   assert.equal(ok({ kind: "tapOn", target: { point: "50%,50%" }, at: "97%,50%" }), false);
   assert.equal(ok({ kind: "longPressOn", target: { id: "row" }, at: "right" }), false);
+  assert.equal(ok({ kind: "tapOn", target: { id: "row" }, at: "100%,0%" }), true);
+  assert.equal(ok({ kind: "tapOn", target: { id: "row" }, at: "101%,50%" }), false);
+  assert.equal(ok({ kind: "tapOn", target: { point: "50%,120%" } }), false);
   assert.equal(ok({ kind: "swipe", direction: "UP", from: "50%,80%", to: "50%,35%" }), true);
   assert.equal(ok({ kind: "swipe", direction: "UP", from: "50%,80%" }), false);
   assert.equal(ok({ kind: "swipe", direction: "DOWN", from: "50%,80%", to: "50%,35%" }), false);
