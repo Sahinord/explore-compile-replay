@@ -4,7 +4,7 @@
 
 **Let an agent explore your system once. Compile what it did into a standard test. Replay it in CI with no model.**
 
-> **Status: early draft, opened on 24 November 2026.** The contract is being written in the open. A first slice runs end to end, on a toy system only: no real app is supported yet. What exists today is listed [below](#what-exists-today).
+> **Status: early draft, opened on 24 November 2026.** The contract is being written in the open. A first slice runs end to end on a toy system, and compiled flows replay on an Android emulator against a demo app. No real app is supported yet. What exists today is listed [below](#what-exists-today).
 
 LLM agents are good at finding what nobody thought to test. They are also slow, they cost money on every run, and they never take the same path twice. That makes them a poor fit for CI.
 
@@ -101,8 +101,8 @@ An adapter is correct when it obeys seven laws. A conformance kit checks them, s
 | MCP server and skills, for an agent to explore | Not started |
 | Reference adapter, [`packages/adapter-fixture`](packages/adapter-fixture/src/adapter.ts) | Runs. A to-do list in memory, compiled to a plain `node:test` file |
 | Conformance kit, [`packages/conformance`](packages/conformance/src/index.ts) | Checks L1, L2, L3, L4 (with the network closed), L5 and L7, and part of L6 |
-| Repair, [`packages/core`](packages/core/src/repair.ts) | First slice: `ecr repair` accepts or refuses a new action for the step that diverged. It calls no model and proposes nothing itself. Runs on the reference adapter only: the mobile target reports no typed divergence yet |
-| Mobile adapter, [`packages/adapter-maestro`](packages/adapter-maestro/README.md) | Draft. A mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows. Checked for syntax, not yet run on a device. No driver, no typed divergences yet |
+| Repair, [`packages/core`](packages/core/src/repair.ts) | First slice: `ecr repair` accepts or refuses a new action for the step that diverged. It calls no model and proposes nothing itself. Tried on the reference adapter only, not yet on a device |
+| Mobile adapter, [`packages/adapter-maestro`](packages/adapter-maestro/README.md) | Draft. A mobile vocabulary and a compiler to [Maestro](https://maestro.dev) flows. Two flows replay on an Android emulator against the demo app of mobile-agent-testers, in a [run started by hand](.github/workflows/device.yml), and a failure names its step or its oracle. No driver. Not tried on iOS, nor on a real app |
 | Web adapter, compiling to Playwright tests | Planned |
 | Drift benchmark: does a replay break, repair, or stay red when it should? | Planned |
 | Paper | Planned |
@@ -137,6 +137,17 @@ To see the three steps on one example, read these two files side by side:
 - the test it compiles to: [`anna-first-item.test.mjs`](packages/adapter-fixture/examples/anna-first-item.test.mjs). It imports nothing from this project, and it holds the names of its parameters, never their values.
 
 The same for a mobile app: [a trace](packages/adapter-maestro/examples/anna-first-item-mobile.trace.json) and [the Maestro flow](packages/adapter-maestro/examples/anna-first-item-mobile.flow.yaml) it compiles to.
+
+On a device, with no model, against the demo app of mobile-agent-testers and its planted bugs:
+
+```text
+pass  tiny-todo-first-task (maestro, 61927 ms)
+bug   tiny-todo-one-tasks (maestro, 65996 ms)
+      oracle_failed  step search  oracle counter-singular: Assertion is false: "1 task" is visible
+      This oracle was recorded as a bug, and the bug is still there. The steps after it did not run.
+```
+
+The second trace holds a bug as a check: the counter says "1 tasks". Both traces are written by hand for now, in [`packages/adapter-maestro/device`](packages/adapter-maestro/device).
 
 The tests replay that file against two changed versions of the system. A new behaviour comes back as a failed oracle. A target that moved comes back as `target_not_found` on its step.
 

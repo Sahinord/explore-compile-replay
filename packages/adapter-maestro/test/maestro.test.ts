@@ -158,11 +158,11 @@ function deviceTrace(name: string): MobileTrace {
  */
 function fakeMaestro(dir: string, total: number, failAt: number | undefined, message: string): string {
   const entries = [
-    { command: { applyConfigurationCommand: {} }, metadata: { status: "COMPLETED" } },
-    { command: { defineVariablesCommand: {} }, metadata: { status: "COMPLETED" } },
+    { command: { defineVariablesCommand: {} }, metadata: { status: "COMPLETED", sequenceNumber: 0 } },
+    { command: { applyConfigurationCommand: {} }, metadata: { status: "COMPLETED", sequenceNumber: 1 } },
     ...Array.from({ length: failAt === undefined ? total : failAt + 1 }, (_, index) => ({
       command: { tapOnElement: {} },
-      metadata: index === failAt ? { status: "FAILED", error: { message } } : { status: "COMPLETED" },
+      metadata: { sequenceNumber: index + 2, ...(index === failAt ? { status: "FAILED", error: { message, debugMessage: "longer text" } } : { status: "COMPLETED" }) },
     })),
   ];
   const record = join(dir, "record.json");
@@ -173,7 +173,8 @@ function fakeMaestro(dir: string, total: number, failAt: number | undefined, mes
     [
       "#!/usr/bin/env bash",
       'while [ $# -gt 0 ]; do [ "$1" = "--debug-output" ] && out="$2"; shift; done',
-      'mkdir -p "$out" && cp "$(dirname "$0")/record.json" "$out/commands-(replay.flow).json"',
+      // Maestro 2.12.1 writes the record in a folder named after the flow.
+      'mkdir -p "$out/anna: a flow" && cp "$(dirname "$0")/record.json" "$out/anna: a flow/commands.json"',
       `exit ${failAt === undefined ? 0 : 1}`,
       "",
     ].join("\n"),

@@ -218,10 +218,14 @@ export function flowCommands(artifact: CompiledArtifact): FlowCommand[] {
   return commands;
 }
 
-/** One entry of the `commands-*.json` file that Maestro writes with `--debug-output`. */
+/**
+ * One entry of the `commands.json` file that Maestro writes under `--debug-output`,
+ * in a folder named after the flow. Seen with Maestro 2.12.1. The file holds the
+ * values that were typed, so it is read here and never copied into a report.
+ */
 interface RecordedCommand {
   readonly command?: Record<string, unknown>;
-  readonly metadata?: { readonly status?: string; readonly error?: { readonly message?: string } };
+  readonly metadata?: { readonly status?: string; readonly sequenceNumber?: number; readonly error?: { readonly message?: string } };
 }
 
 /** Commands that Maestro adds by itself before the ones of the flow. */
@@ -234,7 +238,8 @@ const ADDED_BY_MAESTRO = new Set(["applyConfigurationCommand", "defineVariablesC
  */
 export function failedCommand(recorded: unknown, commands: readonly FlowCommand[]): { command: FlowCommand; message?: string } | undefined {
   if (!Array.isArray(recorded)) return undefined;
-  const ours = (recorded as RecordedCommand[]).filter((entry) => {
+  const inOrder = [...(recorded as RecordedCommand[])].sort((a, b) => (a.metadata?.sequenceNumber ?? 0) - (b.metadata?.sequenceNumber ?? 0));
+  const ours = inOrder.filter((entry) => {
     const kinds = Object.keys(entry.command ?? {});
     return kinds.length > 0 && !kinds.some((kind) => ADDED_BY_MAESTRO.has(kind));
   });
@@ -255,7 +260,7 @@ export function failedCommand(recorded: unknown, commands: readonly FlowCommand[
  *
  *   Assertion is false: "1 task" is visible
  *
- * Seen with Maestro 2.12.1 on an Android emulator.
+ * Seen with Maestro 2.12.1 on an Android emulator. Used when the record is missing.
  */
 export function failedCommandFromOutput(output: string, commands: readonly FlowCommand[]): { command: FlowCommand; message?: string } | undefined {
   const lines = output.split("\n").map((line) => line.trimEnd());
@@ -322,7 +327,7 @@ export function maestroTarget(options: MaestroTargetOptions = {}): Target<Mobile
           const message = divergence.message === undefined ? {} : { message: withoutValues(divergence.message, params) };
           return { verdict: "fail", divergences: [{ ...divergence, ...message }], durationMs };
         };
-        const names = (await readdir(debug).catch(() => [])).filter((name) => /^commands-.*\.json$/.test(name)).sort();
+        const names = (await readdir(debug, { recursive: true }).catch(() => [])).filter((name) => /(^|[\\/])commands[^\\/]*\.json$/.test(name)).sort();
         for (const name of names) {
           let recorded: unknown;
           try {

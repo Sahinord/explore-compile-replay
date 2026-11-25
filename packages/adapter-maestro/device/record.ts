@@ -23,7 +23,7 @@ if (root === undefined || !existsSync(root)) {
 const all = files(root);
 console.log(`${all.length} files kept:`);
 for (const path of all) console.log(`  ${path.slice(root.length + 1)}`);
-for (const path of all.filter((entry) => entry.endsWith(".json"))) {
+for (const path of all.filter((entry) => /commands[^/]*\.json$/.test(entry))) {
   console.log(`\n== ${path.slice(root.length + 1)}`);
   const text = readFileSync(path, "utf8");
   try {
@@ -34,7 +34,6 @@ for (const path of all.filter((entry) => entry.endsWith(".json"))) {
         `${String(entry.metadata?.status).padEnd(10)} ${Object.keys(entry.command ?? {}).join("+")}${error === undefined ? "" : `  ${error.replace(/\s+/g, " ").slice(0, 200)}`}`,
       );
     }
-    console.log(`shape of an entry: ${JSON.stringify(entries.at(-1)).slice(0, 600)}`);
   } catch {
     console.log(`not a JSON list. It starts with: ${text.slice(0, 300)}`);
   }

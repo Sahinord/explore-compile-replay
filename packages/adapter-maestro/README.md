@@ -1,6 +1,6 @@
 # Mobile adapter: traces to Maestro flows
 
-Status: draft. The vocabulary and the compiler exist. The flows are checked for syntax in CI, **not yet run on a device**.
+Status: draft. The vocabulary and the compiler exist. The flows are checked for syntax in CI. Two of them replay on an Android emulator, in a run started by hand ([`device.yml`](../../.github/workflows/device.yml)). Nothing has been tried on iOS or on a real app.
 
 ## What it does
 
@@ -57,10 +57,25 @@ When the agent reports a problem, write what should be true as a checkpoint of t
 
 The flow asserts it like any other oracle, with a comment above it. The flow is red until the app is fixed, which makes it a reproduction to attach to a bug report. The root [README](../../README.md#a-bug-is-a-test-too) gives the rules.
 
+## On a device
+
+[`device/`](device) holds two traces written by hand for Tiny Todo, the demo app of mobile-agent-testers, and the flows they compile to. The `device` workflow builds the app, starts an Android 11 emulator and runs `ecr replay` on them. No model is called.
+
+```text
+pass  tiny-todo-first-task (maestro, 61927 ms)
+bug   tiny-todo-one-tasks (maestro, 65996 ms)
+      oracle_failed  step search  oracle counter-singular: Assertion is false: "1 task" is visible
+```
+
+When a flow fails, the replay names the command that failed: a step, or an oracle. It reads this from the record that Maestro keeps under `--debug-output`, and if there is none, from the lines Maestro prints. A step that fails is reported as `target_not_found`, `timeout` or `action_failed`, from the words of Maestro's message. Only the assertion case has been seen on a device so far.
+
+To keep what Maestro wrote for one replay (its record, its screenshots), set `ECR_MAESTRO_DEBUG` to a folder. The record holds the values that were typed: keep it out of public logs.
+
 ## Known limits
 
 - Maestro matches text as a regular expression. Literal texts are escaped. The value of a parameter is not: a value with `(` or `.` in it is read as a pattern.
 - A literal text cannot contain `${`.
 - Values are passed as `maestro test -e NAME=value`, so they are visible in the process list while the flow runs.
-- `replay` only tells a pass from a failure. Typed divergences (which step, which oracle) are not written yet for Maestro. So `ecr replay` cannot yet tell a recorded bug from a regression on a device.
+- How a failed step is classified (`target_not_found`, `timeout`, `action_failed`) is read from the words of Maestro's message. This is not yet checked on a device.
+- A repair has not been tried on a device.
 - A tap on a point is replayed as is. It breaks on another screen size.
