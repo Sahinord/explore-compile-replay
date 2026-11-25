@@ -3,7 +3,7 @@
  *
  *   ecr validate <trace...> [--adapter <module>]
  *   ecr compile <trace...> --adapter <module> [--target <id>] [--out <dir>] [--check]
- *   ecr replay <trace...> --adapter <module> [--target <id>]
+ *   ecr replay <trace...> --adapter <module> [--target <id>] [--times <n>] [--report <file>]
  *   ecr repair <trace> --adapter <module> --step <id> --action <json> [--target <id>] [--out <dir>]
  *   ecr conformance <trace...> --adapter <module> [--network-closed]
  *
@@ -13,6 +13,7 @@
  *
  * Status: draft.
  */
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -20,7 +21,7 @@ import { parseArgs } from "node:util";
 import type { Adapter, Target, TypedTrace } from "../../../spec/contract.ts";
 import { Trace, type Divergence } from "../../../spec/schema.ts";
 import { checkAdapter, conforms, formatReport } from "../../conformance/src/index.ts";
-import { RepairRefused, TraceError, oraclesInOrder, outcomeOf, parseTrace, repair as checkAndApply } from "../../core/src/index.ts";
+import { RepairRefused, TraceError, firstBug, oraclesInOrder, outcomeOf, parseTrace, repair as checkAndApply, type Outcome } from "../../core/src/index.ts";
 
 export interface Io {
   readonly out: (line: string) => void;
@@ -41,10 +42,13 @@ export const USAGE = `Usage:
   ecr compile <trace...> --adapter <module> [--target <id>] [--out <dir>] [--check]
       Compile each trace to a test file, next to the trace or in <dir>.
       With --check, write nothing and fail if a file is missing or out of date.
-  ecr replay <trace...> --adapter <module> [--target <id>]
+  ecr replay <trace...> --adapter <module> [--target <id>] [--times <n>] [--report <file>]
       Compile each trace and run the result. No model is called.
       pass: every oracle holds. bug: the replay stops on a bug the trace records, and on nothing else.
       fixed: an oracle recorded as a bug now holds. FAIL: anything else, and the only result that fails the command.
+      With --times, replay each trace <n> times and say how many replays gave each result.
+      With --report, write every replay to <file> as JSON: results, durations, where each one stopped.
+      The report holds no message of the system and no parameter value.
   ecr repair <trace> --adapter <module> --step <id> --action <json> [--target <id>] [--out <dir>]
       Give a new action to the step a replay diverged on. The patch is accepted only if the replay
       then gives what the trace recorded. Writes the trace and its compiled file.
@@ -179,40 +183,94 @@ async function compile(io: Io, paths: readonly string[], options: { adapter?: st
   return stale ? 1 : 0;
 }
 
-async function replay(io: Io, paths: readonly string[], options: { adapter?: string; target?: string }): Promise<ExitCode> {
+/** What `ecr replay --report` writes. Types, ids, numbers and hashes only. */
+export const REPORT_SCHEMA = "ecr.replays/0";
+
+const LABEL: Record<Outcome, string> = { pass: "pass", known_bug: "bug", fixed: "fixed", fail: "FAIL" };
+
+function sha256(content: string | Buffer): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+async function replay(
+  io: Io,
+  paths: readonly string[],
+  options: { adapter?: string; target?: string; times?: string; report?: string },
+): Promise<ExitCode> {
+  const times = options.times === undefined ? 1 : Number(options.times);
+  if (!Number.isInteger(times) || times < 1 || times > 1000) throw new UsageError("--times takes a whole number from 1 to 1000");
   const adapter = await loadAdapter(io, options.adapter);
   const target = pickTarget(adapter, options.target);
   const traces = loadTraces(io, adapter, paths);
   if (!traces) return 1;
-  const runs = traces.map(({ trace }) => ({ trace, params: paramValues(io, trace) }));
+  const runs = traces.map(({ path, trace }) => ({ path, trace, params: paramValues(io, trace) }));
 
   let failed = false;
-  for (const { trace, params } of runs) {
-    const result = await target.replay(target.compile(trace), { params });
-    const time = `${Math.round(result.durationMs)} ms`;
-    const outcome = outcomeOf(trace, result);
-    if (outcome === "pass") {
-      io.out(`pass  ${trace.id} (${target.id}, ${time})`);
-      continue;
+  const reported: unknown[] = [];
+  for (const { path, trace, params } of runs) {
+    const artifact = target.compile(trace);
+    const replays: { outcome: Outcome; durationMs: number; divergences: { type: string; stepId?: string; oracleId?: string }[] }[] = [];
+    for (let nth = 1; nth <= times; nth += 1) {
+      const result = await target.replay(artifact, { params });
+      const outcome = outcomeOf(trace, result);
+      if (outcome === "fail") failed = true;
+      replays.push({
+        outcome,
+        durationMs: Math.round(result.durationMs),
+        // The message of a divergence may quote the system: it stays out of the report.
+        divergences: result.divergences.map((divergence) => ({
+          type: divergence.type,
+          ...(divergence.stepId === undefined ? {} : { stepId: divergence.stepId }),
+          ...(divergence.type === "oracle_failed" ? { oracleId: divergence.oracleId } : {}),
+        })),
+      });
+      if (times > 1) {
+        const where = result.divergences.map((divergence) => `  ${divergence.type}${divergence.stepId === undefined ? "" : ` step ${divergence.stepId}`}`).join("");
+        (outcome === "fail" ? io.err : io.out)(`${LABEL[outcome].padEnd(5)} ${trace.id}  replay ${nth} of ${times} (${Math.round(result.durationMs)} ms)${where}`);
+        continue;
+      }
+      const time = `${Math.round(result.durationMs)} ms`;
+      if (outcome === "pass") {
+        io.out(`pass  ${trace.id} (${target.id}, ${time})`);
+      } else if (outcome === "known_bug") {
+        io.out(`bug   ${trace.id} (${target.id}, ${time})`);
+        for (const divergence of result.divergences) io.out(`      ${describe(divergence)}`);
+        io.out("      This oracle was recorded as a bug, and the bug is still there. The steps after it did not run.");
+      } else if (outcome === "fixed") {
+        const bugs = oraclesInOrder(trace).filter((oracle) => oracle.observed === "failed").map((oracle) => oracle.oracleId);
+        io.out(`fixed ${trace.id} (${target.id}, ${time})`);
+        io.out(`      Recorded as a bug, and it holds now: ${bugs.join(", ")}. Remove "observed": "failed" from the trace to keep it as a guard.`);
+      } else {
+        io.err(`FAIL  ${trace.id} (${target.id}, ${time})`);
+        for (const divergence of result.divergences) io.err(`      ${describe(divergence)}`);
+        if (result.divergences.some((divergence) => divergence.type === "oracle_failed")) {
+          io.err("      A failed oracle is never repaired: it is a regression or an intended change, and a person decides.");
+        }
+      }
     }
-    if (outcome === "known_bug") {
-      io.out(`bug   ${trace.id} (${target.id}, ${time})`);
-      for (const divergence of result.divergences) io.out(`      ${describe(divergence)}`);
-      io.out("      This oracle was recorded as a bug, and the bug is still there. The steps after it did not run.");
-      continue;
+    if (times > 1) {
+      const counts = (Object.keys(LABEL) as Outcome[])
+        .map((outcome) => ({ outcome, count: replays.filter((entry) => entry.outcome === outcome).length }))
+        .filter((entry) => entry.count > 0)
+        .map((entry) => `${entry.count} ${LABEL[entry.outcome]}`);
+      io.out(`      ${trace.id}: ${counts.join(", ")} on ${times} replays (${target.id})`);
     }
-    if (outcome === "fixed") {
-      const bugs = oraclesInOrder(trace).filter((oracle) => oracle.observed === "failed").map((oracle) => oracle.oracleId);
-      io.out(`fixed ${trace.id} (${target.id}, ${time})`);
-      io.out(`      Recorded as a bug, and it holds now: ${bugs.join(", ")}. Remove "observed": "failed" from the trace to keep it as a guard.`);
-      continue;
-    }
-    failed = true;
-    io.err(`FAIL  ${trace.id} (${target.id}, ${time})`);
-    for (const divergence of result.divergences) io.err(`      ${describe(divergence)}`);
-    if (result.divergences.some((divergence) => divergence.type === "oracle_failed")) {
-      io.err("      A failed oracle is never repaired: it is a regression or an intended change, and a person decides.");
-    }
+    reported.push({
+      id: trace.id,
+      path,
+      sha256: sha256(readFileSync(resolve(io.cwd, path))),
+      steps: trace.steps.length,
+      oracles: oraclesInOrder(trace).length,
+      recorded: firstBug(trace) ? "known_bug" : "pass",
+      artifact: { path: artifact.path, sha256: sha256(artifact.content) },
+      replays,
+    });
+  }
+  if (options.report !== undefined) {
+    const file = resolve(io.cwd, options.report);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify({ schema: REPORT_SCHEMA, adapter: adapter.id, target: target.id, times, traces: reported }, null, 2)}\n`);
+    io.out(`wrote  ${options.report}`);
   }
   return failed ? 1 : 0;
 }
@@ -285,6 +343,8 @@ export async function run(argv: readonly string[], io: Io): Promise<ExitCode> {
         out: { type: "string" },
         step: { type: "string" },
         action: { type: "string" },
+        times: { type: "string" },
+        report: { type: "string" },
         check: { type: "boolean", default: false },
         "network-closed": { type: "boolean", default: false },
         help: { type: "boolean", short: "h", default: false },
@@ -305,7 +365,13 @@ export async function run(argv: readonly string[], io: Io): Promise<ExitCode> {
     };
     if (command === "validate") return await validate(io, paths, values.adapter);
     if (command === "compile") return await compile(io, paths, { ...options, check: values.check });
-    if (command === "replay") return await replay(io, paths, options);
+    if (command === "replay") {
+      return await replay(io, paths, {
+        ...options,
+        ...(values.times === undefined ? {} : { times: values.times }),
+        ...(values.report === undefined ? {} : { report: values.report }),
+      });
+    }
     if (command === "repair") {
       return await repair(io, paths, {
         ...options,

@@ -62,6 +62,19 @@ pnpm ecr conformance $TRACE --adapter $ADAPTER       # the report above, for any
 
 A trace stores the names of its parameters. Their values come from the environment when the test runs, as `ECR_PARAM_<NAME>`.
 
+To see whether a replay is stable, run it several times and keep every result:
+
+```text
+$ pnpm ecr replay $TRACE --adapter $ADAPTER --times 3 --report replays.json
+pass  anna-first-item  replay 1 of 3 (81 ms)
+pass  anna-first-item  replay 2 of 3 (62 ms)
+pass  anna-first-item  replay 3 of 3 (60 ms)
+      anna-first-item: 3 pass on 3 replays (node-test)
+wrote  replays.json
+```
+
+The report holds, for each trace, the SHA-256 of its file and of the compiled file, and for each replay its result, its duration and where it stopped: a type, a step, an oracle. It holds no message of the system and no parameter value, so it can be published.
+
 Point the replay at a system whose behaviour changed, and it fails with the step and the oracle:
 
 ```text

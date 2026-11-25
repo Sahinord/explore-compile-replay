@@ -127,6 +127,52 @@ test("replay tells a bug the trace records from a regression, and says when the 
   assert.match(fixed.out, /not-done-yet/);
 });
 
+test("replay --times replays each trace several times, and --report keeps every replay with no message and no value", async () => {
+  const dir = scratch();
+  try {
+    const report = join(dir, "replays.json");
+    const result = await ecr(["replay", TRACE, "--adapter", ADAPTER, "--times", "3", "--report", report], VALUES);
+    assert.equal(result.code, 0);
+    assert.match(result.out, /^pass  anna-first-item  replay 1 of 3/m);
+    assert.match(result.out, /anna-first-item: 3 pass on 3 replays \(node-test\)/);
+
+    type Report = {
+      schema: string;
+      times: number;
+      traces: { id: string; sha256: string; recorded: string; replays: { outcome: string; durationMs: number; divergences: Record<string, string>[] }[] }[];
+    };
+    const text = readFileSync(report, "utf8");
+    const written = JSON.parse(text) as Report;
+    assert.equal(written.schema, "ecr.replays/0");
+    assert.equal(written.times, 3);
+    assert.deepEqual(written.traces.map((trace) => [trace.id, trace.recorded, trace.replays.map((entry) => entry.outcome)]), [
+      ["anna-first-item", "pass", ["pass", "pass", "pass"]],
+    ]);
+    assert.match(written.traces[0]!.sha256, /^[0-9a-f]{64}$/);
+    assert.equal(text.includes(exampleValues.PRIVATE_NOTE), false);
+    assert.equal(text.includes(exampleValues.ITEM_TITLE), false);
+
+    const bug = await ecr(["replay", BUG_TRACE, "--adapter", BUGGY, "--times", "2", "--report", report]);
+    assert.equal(bug.code, 0);
+    assert.match(bug.out, /anna-new-item-ticked: 2 bug on 2 replays/);
+    const kept = readFileSync(report, "utf8");
+    const stopped = JSON.parse(kept) as Report;
+    assert.equal(stopped.traces[0]!.recorded, "known_bug");
+    assert.deepEqual(stopped.traces[0]!.replays[1]!.divergences, [{ type: "oracle_failed", stepId: "s1", oracleId: "not-done-yet" }]);
+    assert.equal(kept.includes("message"), false);
+
+    const drifted = await ecr(["replay", TRACE, "--adapter", DRIFTED, "--times", "2", "--report", report], VALUES);
+    assert.equal(drifted.code, 1);
+    assert.match(drifted.err, /^FAIL  anna-first-item  replay 2 of 2 .*oracle_failed step s1/m);
+    assert.match(drifted.out, /anna-first-item: 2 FAIL on 2 replays/);
+
+    assert.equal((await ecr(["replay", TRACE, "--adapter", ADAPTER, "--times", "0"], VALUES)).code, 2);
+    assert.equal((await ecr(["replay", TRACE, "--adapter", ADAPTER, "--times", "many"], VALUES)).code, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("repair accepts a new action for the step that diverged, and writes the trace and its test", async () => {
   const dir = scratch();
   try {
