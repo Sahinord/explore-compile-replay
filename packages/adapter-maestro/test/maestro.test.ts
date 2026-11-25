@@ -122,3 +122,11 @@ test("the vocabulary refuses a check on a point, and an unknown action", () => {
   assert.equal(adapter.actions.safeParse({ kind: "shake" }).success, false);
   assert.equal(adapter.actions.safeParse({ kind: "inputText", text: { param: "not a name" } }).success, false);
 });
+
+test("evidence is carried by the trace and changes no command of the flow", () => {
+  const trace = example();
+  assert.deepEqual(trace.steps[1]!.evidence, { screen: "01", point: [540, 460], size: [1080, 2400], bounds: [40, 400, 1040, 520] });
+  const without: MobileTrace = { ...trace, steps: trace.steps.map(({ evidence: _evidence, ...step }) => step) };
+  const commandsOf = (content: string): string => content.slice(content.indexOf("appId:"));
+  assert.equal(commandsOf(compileToMaestro(without).content), commandsOf(compileToMaestro(trace).content));
+});

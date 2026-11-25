@@ -60,6 +60,12 @@ export const Step = z.object({
   action: VocabularyEntry,
   /** Oracles that must hold right after this step. */
   checkpoints: z.array(Oracle).default([]),
+  /**
+   * What was seen while exploring: a screenshot, where the finger landed.
+   * For people and for tools that show a trace. Never used to compile or
+   * to replay, and never a place for a secret (law L7).
+   */
+  evidence: z.record(z.string(), z.unknown()).optional(),
 });
 export type Step = z.infer<typeof Step>;
 

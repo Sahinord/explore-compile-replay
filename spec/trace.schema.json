@@ -163,6 +163,13 @@
                 "check"
               ]
             }
+          },
+          "evidence": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
           }
         },
         "required": [
@@ -199,6 +206,6 @@
     "steps",
     "provenance"
   ],
-  "$id": "https://github.com/pierridotite/explore-compile-replay/blob/main/spec/trace.schema.json",
-  "title": "Explore-Compile-Replay trace (ecr.trace/0)"
+  "title": "Explore-Compile-Replay trace (ecr.trace/0)",
+  "$id": "https://github.com/pierridotite/explore-compile-replay/blob/main/spec/trace.schema.json"
 }
